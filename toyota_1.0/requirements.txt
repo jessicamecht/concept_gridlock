@@ -1,0 +1,10 @@
+tqdm
+h5py
+numpy
+numba
+scipy
+humanize
+local-attention
+sklearn
+matplotlib
+torch==1.8.0
