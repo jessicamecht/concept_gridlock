@@ -4,6 +4,7 @@ from torchvision.transforms import functional as F
 import os
 import numpy as np
 from PIL import Image
+from torch.utils.data import DataLoader
 import torch
 import pandas as pd
 from collections import namedtuple
@@ -11,7 +12,7 @@ import h5py
 import matplotlib.pyplot as plt
 import time
 import random
-DATA_PATH = "../processed/once_data_w_lanes_compressed.hfd5" 
+DATA_PATH = "./data/processed/once_data_w_lanes_compressed.hfd5" 
 
 class ONCEDataset(Dataset):
     def __init__(
@@ -29,6 +30,7 @@ class ONCEDataset(Dataset):
         self.dataset_type = dataset_type
         self.out_size = out_size
         self.data_path = data_path
+        self.resize = transforms.Resize(224)
         self.use_transform = use_transform
         self.normalize = transforms.Normalize(
             (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
@@ -48,4 +50,6 @@ class ONCEDataset(Dataset):
 
     def __getitem__(self, idx):
         sequences = self.people_seqs[idx]#keys are 'angle', 'id', 'image_array', 'lanes_2d', 'lanes_3d', 'meta', 'pos', 'segm_masks', 'seq_name_x', 'speed', 'times'
-        return sequences['meta'], sequences['image_array'], sequences['segm_masks'], sequences['angle']
+        image = torch.from_numpy(sequences['image_array'])
+        image = self.normalize(self.resize(image))
+        return torch.from_numpy(sequences['meta']), image,  torch.from_numpy(sequences['segm_masks']),  torch.from_numpy(sequences['angle'])
