@@ -2,8 +2,60 @@ import pytorch_lightning as pl
 import torch
 from torch.utils.data import DataLoader
 from torch.nn import functional as F
+import torch.nn as nn 
 from torch.nn.utils.rnn import pad_sequence
 import numpy as np
+
+
+class LaneModule(pl.LightningModule):
+
+    def __init__(self, model, dataset, bs=1):
+        super(LaneModule, self).__init__()
+        print('init')
+        self.dataset = dataset
+        self.model = model
+        self.num_workers = 0
+        self.bs = bs
+        self.loss = nn.MSELoss()
+    def forward(self, x):
+        print('forward')
+        return F.log_softmax(self.model(x), dim=1)
+    def training_step(self, batch, batch_idx):
+        print('training_step')
+        meta, image_array, segm_masks, angle, m_lens, i_lens, s_lens, a_lens = batch
+        logits = self(image_array)
+        print(logits.shape)
+        loss = self.loss(logits, angle)
+        return loss
+    def validation_step(self, batch, batch_idx):
+        print('validation_step')
+        meta, image_array, segm_masks, angle, m_lens, i_lens, s_lens, a_lens = batch
+        logits = self(image_array)
+        print(logits.shape)
+        loss = self.loss(logits, angle)
+        return loss
+    def test_step(self, batch, batch_idx):
+        print('validation_step')
+        meta, image_array, segm_masks, angle, m_lens, i_lens, s_lens, a_lens = batch
+        logits = self(image_array)
+        print(logits.shape)
+        loss = self.loss(logits, angle)
+        return loss
+    def train_dataloader(self):
+        print('train_dataloader')
+        return DataLoader(self.dataset, batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
+
+    def val_dataloader(self):
+        print('val_dataloader')
+        return DataLoader(self.dataset, batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
+
+    def test_dataloader(self):
+        print('test_dataloader')
+        return DataLoader(self.dataset, batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
+
+    def configure_optimizers(self):
+        g_opt = torch.optim.Adam(self.model.parameters(), lr=1e-5)
+        return g_opt
 
 
 def pad_collate(batch):
@@ -19,42 +71,3 @@ def pad_collate(batch):
     a_pad = pad_sequence(angle, batch_first=True, padding_value=0)
 
     return m_pad, i_pad, segm_pad, a_pad, m_lens, i_lens, s_lens, a_lens
-
-
-
-class LaneModule(pl.LightningModule):
-
-    def __init__(self, model, dataset, bs=1):
-        super(LaneModule, self).__init__()
-        self.dataset = dataset
-        self.model = model
-        self.bs = bs
-    def forward(self, x):
-        return F.log_softmax(self.model(x), dim=1)
-    def training_step(self, batch, batch_idx):
-        meta, image_array, segm_masks, angle, m_lens, i_lens, s_lens, a_lens = batch
-        logits = self(image_array)
-        loss = F.nll_loss(logits, angle)
-        return loss
-    def validation_step(self, batch, batch_idx):
-        meta, image_array, segm_masks, angle, m_lens, i_lens, s_lens, a_lens = batch
-        logits = self(image_array)
-        loss = F.nll_loss(logits, angle)
-        return loss
-    def test_step(self, batch, batch_idx):
-        meta, image_array, segm_masks, angle, m_lens, i_lens, s_lens, a_lens = batch
-        logits = self(image_array)
-        loss = F.nll_loss(logits, angle)
-        return loss
-    def train_dataloader(self):
-        return DataLoader(self.dataset, batch_size=self.bs, collate_fn=pad_collate)
-
-    def val_dataloader(self):
-        return DataLoader(self.dataset, batch_size=self.bs, collate_fn=pad_collate)
-
-    def test_dataloader(self):
-        return DataLoader(self.dataset, batch_size=self.bs, collate_fn=pad_collate)
-
-    def configure_optimizers(self):
-        g_opt = torch.optim.Adam(self.model.parameters(), lr=1e-5)
-        return g_opt

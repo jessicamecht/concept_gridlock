@@ -2,6 +2,7 @@ from torch.utils.data import Dataset, DataLoader  # For custom data-sets
 import torchvision.transforms as transforms
 from torchvision.transforms import functional as F
 import os
+import math 
 import numpy as np
 from PIL import Image
 from torch.utils.data import DataLoader
@@ -12,7 +13,7 @@ import h5py
 import matplotlib.pyplot as plt
 import time
 import random
-DATA_PATH = "./data/processed/once_data_w_lanes_compressed.hfd5" 
+DATA_PATH = "/home/jechterh/data1/jessica/data/toyota/once_data_w_lanes_compressed.hfd5" 
 
 class ONCEDataset(Dataset):
     def __init__(
@@ -46,10 +47,16 @@ class ONCEDataset(Dataset):
                 self.people_seqs.append(iter_dict)
 
     def __len__(self):
+        print('len')
         return len(self.people_seqs)
 
     def __getitem__(self, idx):
+        print('gettt')
+        rint = random.randint(10,15)
         sequences = self.people_seqs[idx]#keys are 'angle', 'id', 'image_array', 'lanes_2d', 'lanes_3d', 'meta', 'pos', 'segm_masks', 'seq_name_x', 'speed', 'times'
-        image = torch.from_numpy(sequences['image_array'])
-        image = self.normalize(self.resize(image))
-        return torch.from_numpy(sequences['meta']), image,  torch.from_numpy(sequences['segm_masks']),  torch.from_numpy(sequences['angle'])
+        images = torch.from_numpy(sequences['image_array'])[::rint].permute(0,3,1,2)
+        masks = torch.from_numpy(sequences['segm_masks'])[::rint].permute(0,3,1,2)
+        print('images', images.shape)
+        images = F.resize(images, (224, 224))
+        masks = F.resize(masks, (224, 224))
+        return torch.from_numpy(sequences['meta'])[0:10], images,  masks,  torch.from_numpy(sequences['angle'])[0:10]

@@ -8,11 +8,15 @@ import torch
 if __name__ == "__main__":
     model = VTN()
     dataset = ONCEDataset()
+    print("here")
     module = LaneModule(model, dataset)
+    print("here1")
     trainer = pl.Trainer(
-        accelerator="mps",
+        fast_dev_run=True,
+        accelerator="gpu",
         devices=1 if torch.cuda.is_available() else None,  # limiting got iPython runs
-        max_epochs=3,
+        #max_epochs=3,
         callbacks=[TQDMProgressBar(refresh_rate=20)],
         )
-    trainer.fit(module, dataset)
+    print("here2")
+    trainer.fit(module)

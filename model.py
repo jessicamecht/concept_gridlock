@@ -3,6 +3,7 @@ import torch.nn as nn
 from torchvision import models 
 from transformers import LongformerModel, LongformerConfig
 import torch.nn.functional as F
+import math 
 from timm.models.vision_transformer import vit_base_patch16_224
 
 def dfs_freeze(model):
@@ -10,28 +11,6 @@ def dfs_freeze(model):
         for param in child.parameters():
             param.requires_grad = False
         dfs_freeze(child)
-
-class LaneModel(nn.Module):
-    def __init__(self):
-        super(LaneModel, self).__init__()
-        full_resnet = models.resnet101(pretrained=True)
-        dfs_freeze(full_resnet)
-        self.resnet = torch.nn.Sequential(*(list(full_resnet.children())[:-1]))
-        self.linear = nn.Linear(2048, 768)
-        self.longformer = VTNLongformerModel()
-
-
-    def forward(self, images):
-
-        images = images.squeeze()
-        images = images.permute(0, 3, 1, 2)[0:2,:,:,:]
-
-        embeddings = self.resnet(images).squeeze()
-        attention_mask = torch.ones(embeddings.shape, dtype=torch.long, device=embeddings.device)
-        #embeddings = self.linear(embeddings)
-        print(embeddings)
-        logits = self.longformer(embeddings, attention_mask)
-        return logits
 
 class VTNLongformerModel(LongformerModel):
     def __init__(self,
@@ -97,13 +76,14 @@ class VTN(nn.Module):
         self._construct_network()
 
     def _construct_network(self):
-        self.backbone = vit_base_patch16_224(pretrained=True,
-                                                 num_classes=0,
-                                                 drop_path_rate=0.0,
-                                                 drop_rate=0.0)
+        #full_resnet = models.resnet18(pretrained=True)
+        #dfs_freeze(full_resnet)
+        #resnet = torch.nn.Sequential(*(list(full_resnet.children())[:-1] + [nn.Linear(2048, 768)]))
+        self.backbone = vit_base_patch16_224(pretrained=True,num_classes=0,drop_path_rate=0.0,drop_rate=0.0)
         
         embed_dim = self.backbone.embed_dim
         self.cls_token = nn.Parameter(torch.randn(1, 1, embed_dim))
+        #self.pe = PositionalEncoding(embed_dim)
 
         self.temporal_encoder = VTNLongformerModel(
             embed_dim=embed_dim,
@@ -127,13 +107,14 @@ class VTN(nn.Module):
 
     def forward(self, x, bboxes=None):
 
-        x, position_ids = x, list(range(len(x)))
-
         # spatial backbone
-        B, C, F, H, W = x.shape
-        x = x.permute(0, 2, 1, 3, 4)
+        B, F, C, H, W = x.shape
+        print(x.shape)
+        #x = x.permute(0, 2, 1, 3, 4)
         x = x.reshape(B * F, C, H, W)
+        print("backbone input ",x.shape)
         x = self.backbone(x)
+        print("backbone output ",x.shape)
         x = x.reshape(B, F, -1)
 
         # temporal encoder (Longformer)
@@ -147,24 +128,24 @@ class VTN(nn.Module):
         x, attention_mask, position_ids = pad_to_window_size_local(
             x,
             attention_mask,
-            position_ids,
+            x,#position_ids,
             self.temporal_encoder.config.attention_window[0],
             self.temporal_encoder.config.pad_token_id)
         token_type_ids = torch.zeros(x.size()[:-1], dtype=torch.long, device=x.device)
         token_type_ids[:, 0] = 1
 
         # position_ids
-        position_ids = position_ids.long()
-        mask = attention_mask.ne(0).int()
-        max_position_embeddings = self.temporal_encoder.config.max_position_embeddings
-        position_ids = position_ids % (max_position_embeddings - 2)
-        position_ids[:, 0] = max_position_embeddings - 2
-        position_ids[mask == 0] = max_position_embeddings - 1
+        #position_ids = position_ids.long()
+        #mask = attention_mask.ne(0).int()
+        #max_position_embeddings = self.temporal_encoder.config.max_position_embeddings
+        #position_ids = position_ids % (max_position_embeddings - 2)
+        #position_ids[:, 0] = max_position_embeddings - 2
+        #position_ids[mask == 0] = max_position_embeddings - 1
 
         x = self.temporal_encoder(input_ids=None,
                                   attention_mask=attention_mask,
                                   token_type_ids=token_type_ids,
-                                  position_ids=position_ids,
+                                  position_ids=None,#position_ids,
                                   inputs_embeds=x,
                                   output_attentions=None,
                                   output_hidden_states=None,
