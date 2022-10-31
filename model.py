@@ -109,12 +109,9 @@ class VTN(nn.Module):
 
         # spatial backbone
         B, F, C, H, W = x.shape
-        print(x.shape)
         #x = x.permute(0, 2, 1, 3, 4)
         x = x.reshape(B * F, C, H, W)
-        print("backbone input ",x.shape)
         x = self.backbone(x)
-        print("backbone output ",x.shape)
         x = x.reshape(B, F, -1)
 
         # temporal encoder (Longformer)
@@ -149,8 +146,10 @@ class VTN(nn.Module):
                                   inputs_embeds=x,
                                   output_attentions=None,
                                   output_hidden_states=None,
-                                  return_dict=None)
+                                  return_dict=True)
         # MLP head
         x = x["last_hidden_state"]
-        x = self.mlp_head(x[:, 0])
-        return x
+        b, s, e = x.shape
+        x = x.reshape(b*s, e)
+        x = self.mlp_head(x)
+        return x[1:F+1]

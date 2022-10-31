@@ -1,5 +1,6 @@
 import pytorch_lightning as pl
 import torch
+from dataloader import *
 from torch.utils.data import DataLoader
 from torch.nn import functional as F
 import torch.nn as nn 
@@ -9,54 +10,49 @@ import numpy as np
 
 class LaneModule(pl.LightningModule):
 
-    def __init__(self, model, dataset, bs=1):
+    def __init__(self, model, bs=1):
         super(LaneModule, self).__init__()
-        print('init')
-        self.dataset = dataset
         self.model = model
-        self.num_workers = 0
+        self.num_workers = 10
         self.bs = bs
         self.loss = nn.MSELoss()
     def forward(self, x):
-        print('forward')
         return F.log_softmax(self.model(x), dim=1)
     def training_step(self, batch, batch_idx):
-        print('training_step')
         meta, image_array, segm_masks, angle, m_lens, i_lens, s_lens, a_lens = batch
         logits = self(image_array)
-        print(logits.shape)
-        loss = self.loss(logits, angle)
+        loss = self.loss(logits.squeeze(), angle.squeeze())
+        self.log_dict({"loss": loss}, on_step=True, on_epoch=True)
         return loss
     def validation_step(self, batch, batch_idx):
-        print('validation_step')
         meta, image_array, segm_masks, angle, m_lens, i_lens, s_lens, a_lens = batch
         logits = self(image_array)
-        print(logits.shape)
-        loss = self.loss(logits, angle)
+        loss = self.loss(logits.squeeze(), angle.squeeze())
         return loss
     def test_step(self, batch, batch_idx):
-        print('validation_step')
         meta, image_array, segm_masks, angle, m_lens, i_lens, s_lens, a_lens = batch
         logits = self(image_array)
-        print(logits.shape)
-        loss = self.loss(logits, angle)
+        loss = self.loss(logits.squeeze(), angle.squeeze())
         return loss
+    def training_epoch_end(self, outputs):
+        losses = torch.mean(torch.stack([x['loss'] for x in outputs]))
+        self.log_dict({"loss_epoch": losses }, on_step=False, on_epoch=True)
+
     def train_dataloader(self):
-        print('train_dataloader')
-        return DataLoader(self.dataset, batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
+        return self.get_dataloader(dataset_type="train")
 
     def val_dataloader(self):
-        print('val_dataloader')
-        return DataLoader(self.dataset, batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
+        return self.get_dataloader(dataset_type="val")
 
     def test_dataloader(self):
-        print('test_dataloader')
-        return DataLoader(self.dataset, batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
+        return self.get_dataloader(dataset_type="test")
 
     def configure_optimizers(self):
         g_opt = torch.optim.Adam(self.model.parameters(), lr=1e-5)
         return g_opt
 
+    def get_dataloader(self, dataset_type):
+        return DataLoader(ONCEDataset(dataset_type=dataset_type), batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
 
 def pad_collate(batch):
     meta, img, segm, angle = zip(*batch)
