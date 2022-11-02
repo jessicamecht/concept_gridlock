@@ -8,7 +8,7 @@ hyper_params = {
     # Baselines: 		[ 'copy', 'linear' ] 
 	# Non-sequential: 	[ 'MLP' ] 
 	# Sequential: 		[ 'RNN', 'Transformer', 'GapFormer' ]
-    'model_type':           'GapFormer',
+    'model_type':           'Transformer',
 	'horizon': 				False,  # NOTE: not applicable for baselines
 	'staggered_training': 	False, # NOTE: not included in the paper, check slides for staggered training
 
@@ -20,10 +20,10 @@ hyper_params = {
 	'seq_step_size':        100,
 
     ## All methods
-    'latent_size':          16, 
+    'latent_size':          512, 
     'dropout':              0.0,
     'weight_decay':         float(1e-6),
-    'lr':                   0.005,
+    'lr':                   0.0005,
 
 	# ALL Sequential Methods
     'max_seq_len':          5_000,
