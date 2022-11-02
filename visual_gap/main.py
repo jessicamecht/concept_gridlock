@@ -1,5 +1,6 @@
 import os
 import gc
+import sys
 import time
 import humanize
 import datetime as dt
@@ -25,8 +26,11 @@ def train(model, criterion, optimizer, reader, hyper_params):
         optimizer.zero_grad()
     
         # Forward pass
+        # print (type(data))
+        # print (y.size())
         output = model(*data)
-
+        # print (output.size())
+        # sys.exit()
         # Compute per-interaction loss
         loss = criterion(output, y, return_mean = False)
 
@@ -170,6 +174,7 @@ def main(hyper_params, gpu_id = None, just_eval = False):
         # torch.cuda.set_device(int(gpu_id))
 
     hyper_params['log_file'] = "../results/{}/logs/{}.txt".format(hyper_params['dataset'], get_common_path(hyper_params))
+    # hyper_params['log_file'] = "../results/{}/logs/test.txt".format(hyper_params['dataset'])
     hyper_params['model_path'] = "../results/{}/models/{}.pt".format(hyper_params['dataset'], get_common_path(hyper_params))
 
     import torch    

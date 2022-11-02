@@ -130,6 +130,7 @@ class rating_data_base:
 
     def load_data(self):
         if os.path.exists(get_data_path(self.dataset_name)): 
+            print ("Data exists!!! ***")
             with h5py.File(get_data_path(self.dataset_name), 'r') as f:
                 flat_data = np.array(list(zip(
                     f['user'][:], 
@@ -150,8 +151,9 @@ class rating_data_base:
                 ])
                 
         else: 
+            print ("Non exists!!! ***")
             self.read_raw_data()
-            self.save_data()
+            # self.save_data()
 
         # Convert weather and vehicle to one-hot
         self.convert_to_one_hot()
@@ -162,7 +164,7 @@ class rating_data_base:
         total_weathers, total_vehicles = {}, {}
         for u in range(len(self.data)):
             for _, _, policy_indep_context in self.data[u]:
-                weather, vehicle = policy_indep_context[-2], policy_indep_context[-1]
+                weather, vehicle = policy_indep_context[1], policy_indep_context[2]
                 if vehicle not in total_vehicles: total_vehicles[vehicle] = len(total_vehicles)
                 if weather not in total_weathers: total_weathers[weather] = len(total_weathers)
 
@@ -182,7 +184,7 @@ class rating_data_base:
         # Final
         for u in range(len(self.data)):
             for at in range(len(self.data[u])):
-                self.data[u][at][2] = convert(self.data[u][at][2])
+                self.data[u][at][2][:3] = convert(self.data[u][at][2][:3])
 
     def normalize_context(self):
         all_policy_dep_context, lead_speeds = [], []
@@ -368,12 +370,14 @@ class rating_data_once(rating_data_base):
         super(rating_data_once, self).__init__(hyper_params, "once")
     
     def read_raw_data(self):
-        flat_data = np.load("{}/once/metadata.npz".format(BASE_DATA_PATH))['data']
-        
+        raw_data = np.load("{}/once/metadata.npz".format(BASE_DATA_PATH))
+        flat_data = raw_data['data']
+        image_paths = raw_data['image_paths'] 
+
         dict_data = defaultdict(list)
 
         weather_map = {}
-        for sequence_id, timestamp, gap, speed, weather, image_index in flat_data:
+        for (sequence_id, timestamp, gap, speed, weather, image_index), image_path in zip(flat_data, image_paths):
             if weather not in weather_map: weather_map[weather] = len(weather_map)
         print(weather_map)
 
@@ -393,8 +397,8 @@ class rating_data_once(rating_data_base):
                     0, # Leader-speed
                     weather_map[weather], # weather information not available,
                     0 # self-vehicle-name
-                ],
-
+                ]+np.load(image_path).tolist(), 
+                
                 timestamp        
             ])
 
@@ -406,7 +410,8 @@ class rating_data_once(rating_data_base):
             user_history = list(map(lambda x: x[:-1], user_history))
             self.data.append(user_history)
 
-        print(self.data[0][:10])
+        # print('sample data', self.data[0][:2])
+        # sys.exit()
 
 if __name__ == "__main__":
     print("Preprocessing {}...".format(hyper_params['dataset']))

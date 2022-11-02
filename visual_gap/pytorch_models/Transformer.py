@@ -166,7 +166,7 @@ class Transformer(torch.nn.Module):
         
         # Embed sequence
         log_feats = self.log2feats(input, timeline_mask)           # [ bsz x seq_len x features ]
-
+        # print ('log_feats', log_feats.shape)
         predicted_delta = self.decode(log_feats) / scale_delta
         
         if self.hyper_params['horizon']:
@@ -180,7 +180,9 @@ class Transformer(torch.nn.Module):
         
         context_embed = context_seq                         # [ bsz x seq_len x features ]
         curr_distance_embed = dist_seq.unsqueeze(-1)        # [ bsz x seq_len x 1 ]
-
+        # print (context_embed.shape)
+        # print (curr_distance_embed.shape)
+        # print ("eval", eval)
         if not eval:
             return self.one_step(
                 torch.cat([ context_embed, curr_distance_embed ], axis = -1),

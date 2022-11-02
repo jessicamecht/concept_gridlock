@@ -43,13 +43,13 @@ def get_common_path(hyper_params):
                             get('dropout'), get('max_seq_len')
                         ),
 
-        "Transformer": 	lambda: "_latent_size_{}_dropout_{}_heads_{}_blocks_{}_max_seq_len_{}".format(
+        "Transformer": 	lambda: "wimg_latent_size_{}_dropout_{}_heads_{}_blocks_{}_max_seq_len_{}".format(
                             get('latent_size'), get('dropout'), 
                             get('num_heads'), get('num_blocks'),
                             get('max_seq_len')
                         ),
 
-        "GapFormer": 	lambda: "_latent_size_{}_dropout_{}_heads_{}_blocks_{}_max_seq_len_{}_fusion_{}".format(
+        "GapFormer": 	lambda: "wimg_latent_size_{}_dropout_{}_heads_{}_blocks_{}_max_seq_len_{}_fusion_{}".format(
                             get('latent_size'), get('dropout'), 
                             get('num_heads'), get('num_blocks'),
                             get('max_seq_len'), get('gapformer_fusion')

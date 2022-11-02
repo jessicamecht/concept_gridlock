@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -35,7 +36,13 @@ class DataHolder:
         
         data_object.load_index()
         self.data, self.index = data_object.data, data_object.index
-        
+        # print (len(self.data), len(self.index))
+        # print (type(self.data[0]), type(self.index[0]))
+        # print (len(self.data), len(self.index))
+        # print (self.index[0])
+        # print (type(self.data[0][0]), len(self.data[0][0]), len(self.data[0][0][2]))
+        # print (self.data[0][0][0], self.data[0][0][1], self.data[0][0][2][:5])
+        # sys.exit()
         self.num_items = 0
 		
         # Since these could be arbitrary features
