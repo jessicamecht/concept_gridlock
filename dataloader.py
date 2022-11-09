@@ -18,14 +18,13 @@ class ONCEDataset(Dataset):
     def __init__(
         self,
         dataset_type="train",
-        in_size=(480, 640),
         out_size=(240, 320),
-        max_depth=0,
         use_transform=False,
     ):
         assert dataset_type in ["train", "val", "test"]
         self.dataset_type = dataset_type
         self.max_len = 150
+        self.min_angle, self.max_angle, self.range_angle = (2.1073424e-08, 0.102598816, 0.102598794)
         self.out_size = out_size
         self.use_transform = use_transform
         self.normalize = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
@@ -49,11 +48,14 @@ class ONCEDataset(Dataset):
     def __getitem__(self, idx):
         
         sequences = self.people_seqs[idx]#keys are 'angle', 'id', 'image_array', 'lanes_2d', 'lanes_3d', 'meta', 'pos', 'segm_masks', 'seq_name_x', 'speed', 'times'
-        rint = random.randint(0,max(0, len(sequences['image_array'])-(self.max_len+1)))
+        rint = 0#random.randint(0,max(0, len(sequences['image_array'])-(self.max_len+1))) to randomize sequence
         start = rint if len(sequences['image_array']) > self.max_len else 0
         end = rint+self.max_len if len(sequences['image_array']) > self.max_len else -1
         images = torch.from_numpy(sequences['image_array'])[start:end].permute(0,3,1,2)
         masks = torch.from_numpy(sequences['segm_masks'])[start:end].permute(0,3,1,2)
         images = F.resize(self.normalize(images), (224, 224))
         masks = F.resize(masks, (224, 224))
-        return torch.zeros(len(sequences['angle']))[start:end], images,  masks,  torch.from_numpy(sequences['angle'])[start:end]#None should be torch.from_numpy(sequences['meta'])[rint:100]
+        angles = torch.from_numpy(sequences['angle'])[start:end]*(180/np.pi)
+        angles = angles - self.min_angle/self.range_angle
+        
+        return torch.zeros(len(sequences['angle']))[start:end], images,  masks,  angles

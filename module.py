@@ -17,12 +17,12 @@ class LaneModule(pl.LightningModule):
         self.bs = bs
         self.loss = nn.MSELoss()
     def forward(self, x):
-        return F.log_softmax(self.model(x), dim=1)
+        return self.model(x)
     def training_step(self, batch, batch_idx):
         meta, image_array, segm_masks, angle, m_lens, i_lens, s_lens, a_lens = batch
         logits = self(image_array)
         loss = self.loss(logits.squeeze(), angle.squeeze())
-        self.log_dict({"loss": loss}, on_step=True, on_epoch=True)
+        self.log_dict({"loss1": loss})
         return loss
     def validation_step(self, batch, batch_idx):
         meta, image_array, segm_masks, angle, m_lens, i_lens, s_lens, a_lens = batch
@@ -36,7 +36,7 @@ class LaneModule(pl.LightningModule):
         return loss
     def training_epoch_end(self, outputs):
         losses = torch.mean(torch.stack([x['loss'] for x in outputs]))
-        self.log_dict({"loss_epoch": losses }, on_step=False, on_epoch=True)
+        self.log_dict({"loss_epoch1": losses })
 
     def train_dataloader(self):
         return self.get_dataloader(dataset_type="train")

@@ -80,10 +80,11 @@ class VTN(nn.Module):
         #dfs_freeze(full_resnet)
         #resnet = torch.nn.Sequential(*(list(full_resnet.children())[:-1] + [nn.Linear(2048, 768)]))
         self.backbone = vit_base_patch16_224(pretrained=True,num_classes=0,drop_path_rate=0.0,drop_rate=0.0)
+        dfs_freeze(self.backbone)
         
         embed_dim = self.backbone.embed_dim
         self.cls_token = nn.Parameter(torch.randn(1, 1, embed_dim))
-        #self.pe = PositionalEncoding(embed_dim)
+        #self.pe = PositionalEncoding(embed_dim) #TODO add positional encoding
 
         self.temporal_encoder = VTNLongformerModel(
             embed_dim=embed_dim,
@@ -109,7 +110,6 @@ class VTN(nn.Module):
 
         # spatial backbone
         B, F, C, H, W = x.shape
-        #x = x.permute(0, 2, 1, 3, 4)
         x = x.reshape(B * F, C, H, W)
         x = self.backbone(x)
         x = x.reshape(B, F, -1)
@@ -125,13 +125,13 @@ class VTN(nn.Module):
         x, attention_mask, position_ids = pad_to_window_size_local(
             x,
             attention_mask,
-            x,#position_ids,
+            x,#position_ids, TODO add position_ids
             self.temporal_encoder.config.attention_window[0],
             self.temporal_encoder.config.pad_token_id)
         token_type_ids = torch.zeros(x.size()[:-1], dtype=torch.long, device=x.device)
         token_type_ids[:, 0] = 1
 
-        # position_ids
+        # TODO add position_ids
         #position_ids = position_ids.long()
         #mask = attention_mask.ne(0).int()
         #max_position_embeddings = self.temporal_encoder.config.max_position_embeddings
