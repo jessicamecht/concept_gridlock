@@ -23,7 +23,7 @@ class LaneModule(pl.LightningModule):
     def forward(self, x):
         return self.model(x)
 
-    def calculate_loss(self, logits):
+    def calculate_loss(self, logits, angle, distance):
         if self.multitask:
             logits_angle, logits_dist = logits
             loss_angle = self.loss(logits_angle.squeeze(), angle.squeeze())
@@ -31,23 +31,24 @@ class LaneModule(pl.LightningModule):
             loss = (loss_angle + loss_distance)/2
         else:
             loss = self.loss(logits.squeeze(), angle.squeeze())
-        return 
+        return loss
     def training_step(self, batch, batch_idx):
         meta, image_array, segm_masks, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array)
-        loss = self.calculate_loss(logits)
+        loss = self.calculate_loss(logits, angle, distance)
         self.log_dict({"train_loss": loss}, on_epoch=True)
         return loss
     def validation_step(self, batch, batch_idx):
         meta, image_array, segm_masks, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array)
-        loss = self.calculate_loss(logits)
+        loss = self.calculate_loss(logits, angle, distance)
+        print(loss, 'losslosslossloss')
         self.log_dict({"val_loss": loss}, on_epoch=True)
         return loss
     def test_step(self, batch, batch_idx):
         meta, image_array, segm_masks, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array)
-        loss = self.calculate_loss(logits)
+        loss = self.calculate_loss(logits, angle, distance)
         self.log_dict({"test_loss": loss}, on_epoch=True)
         return loss 
 

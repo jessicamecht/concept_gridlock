@@ -7,7 +7,7 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 
 
 if __name__ == "__main__":
-    model = VTN(multitask=False)
+    model = VTN()
     module = LaneModule(model)
     trainer = pl.Trainer(
         #fast_dev_run=True,
