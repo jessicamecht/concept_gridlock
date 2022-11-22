@@ -11,24 +11,26 @@ import numpy as np
 
 class LaneModule(pl.LightningModule):
 
-    def __init__(self, model, bs=1, multitask=False):
+    def __init__(self, model, bs=1, multitask="angle"):
         super(LaneModule, self).__init__()
         self.model = model
         self.num_workers = 10
         self.multitask = multitask
         self.bs = bs
         self.loss = nn.MSELoss()
-        if self.multitask:
+        if self.multitask  == "multitask":
             self.distanceloss = nn.MSELoss()
     def forward(self, x):
         return self.model(x)
 
     def calculate_loss(self, logits, angle, distance):
-        if self.multitask:
+        if self.multitask == "multitask":
             logits_angle, logits_dist = logits
-            loss_angle = self.loss(logits_angle.squeeze(), angle.squeeze())
-            loss_distance = self.loss(logits_distance.squeeze(), distance.squeeze())
+            loss_angle = torch.sqrt(self.loss(logits_angle.squeeze(), angle.squeeze()))
+            loss_distance = torch.sqrt(self.loss(logits_dist.squeeze(), distance.squeeze()))
             loss = (loss_angle + loss_distance)/2
+            self.log_dict({"train_loss_angle": loss_angle}, on_epoch=True)
+            self.log_dict({"train_loss_distance": loss_distance}, on_epoch=True)
         else:
             loss = torch.sqrt(self.loss(logits.squeeze(), angle.squeeze()))
         return loss
@@ -78,7 +80,7 @@ class LaneModule(pl.LightningModule):
         return g_opt
 
     def get_dataloader(self, dataset_type):
-        return DataLoader(ONCEDataset(dataset_type=dataset_type), batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
+        return DataLoader(ONCEDataset(dataset_type=dataset_type, multitask=self.multitask), batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
 
 def pad_collate1(batch):
     meta, img, segm, angle, dist = zip(*batch)

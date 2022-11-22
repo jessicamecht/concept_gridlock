@@ -4,17 +4,24 @@ from module import *
 from pytorch_lightning.callbacks.progress import TQDMProgressBar
 import torch 
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
+import argparse
 
 
 if __name__ == "__main__":
-    model = VTN(multitask=False)
-    module = LaneModule(model)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-task', default="angle", type=str)  
+    parser.add_argument('-gpu_num', default=0, type=int)  
+    args = parser.parse_args()
+    multitask = args.task
+    model = VTN(multitask=multitask)
+    module = LaneModule(model, multitask=multitask)
     trainer = pl.Trainer(
         #fast_dev_run=True,
         accelerator="gpu",
-        devices=1 if torch.cuda.is_available() else None, 
+        devices=[args.gpu_num] if torch.cuda.is_available() else None, 
         max_epochs=10000,
-        default_root_dir="./checkpoints",
+        default_root_dir=f"./checkpoints_{args.task}" ,
         callbacks=[TQDMProgressBar(refresh_rate=20)],#, EarlyStopping(monitor="train_loss", mode="min")],
         )
     trainer.fit(module)

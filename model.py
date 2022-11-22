@@ -72,7 +72,7 @@ class VTN(nn.Module):
     https://arxiv.org/abs/2102.00719
     """
 
-    def __init__(self,multitask=False, backbone="resnet"):
+    def __init__(self,multitask="angle", backbone="resnet"):
         super(VTN, self).__init__()
         self._construct_network(multitask, backbone)
 
@@ -174,4 +174,7 @@ class VTN(nn.Module):
         if self.multitask:
             x2 = self.mlp_head_2(x)
         x = self.mlp_head(x)
-        return x[1:F+1] if not self.multitask else x2[1:F+1]
+        if self.multitask != "multitask":
+            return x[1:F+1]
+        else:
+            return x[1:F+1], x2[1:F+1]
