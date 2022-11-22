@@ -381,26 +381,48 @@ class rating_data_once(rating_data_base):
             if weather not in weather_map: weather_map[weather] = len(weather_map)
         print(weather_map)
 
-        for sequence_id, timestamp, gap, speed, weather, image_index in flat_data:
-            dict_data[sequence_id].append([
-                float(gap),
+        i = 0
+        for (sequence_id, timestamp, gap, speed, weather, image_index), image_path in zip(flat_data, image_paths):
+            if self.hyper_params['image_feature'] is True:
+                dict_data[sequence_id].append([
+                    float(gap),
 
-                # Logging policy dependent
-                [
-                    0, # time-gap NOTE: need to calculate using physics
-                    float(speed), # self-speed
-                    0 # current self-acceleration
-                ],
+                    # Logging policy dependent
+                    [
+                        0, # time-gap NOTE: need to calculate using physics
+                        float(speed), # self-speed
+                        0 # current self-acceleration
+                    ],
 
-                # Independent of the logging policy
-                [
-                    0, # Leader-speed
-                    weather_map[weather], # weather information not available,
-                    0 # self-vehicle-name
-                ]+np.load(image_path).tolist(), 
-                
-                timestamp        
-            ])
+                    # Independent of the logging policy
+                    [
+                        0, # Leader-speed
+                        weather_map[weather], # weather information not available,
+                        0 # self-vehicle-name
+                    ]+np.load(image_path).tolist(), 
+                    
+                    timestamp        
+                ])
+            else: 
+                dict_data[sequence_id].append([
+                    float(gap),
+
+                    # Logging policy dependent
+                    [
+                        0, # time-gap NOTE: need to calculate using physics
+                        float(speed), # self-speed
+                        0 # current self-acceleration
+                    ],
+
+                    # Independent of the logging policy
+                    [
+                        0, # Leader-speed
+                        weather_map[weather], # weather information not available,
+                        0 # self-vehicle-name
+                    ], 
+                    
+                    timestamp        
+                ])
 
         self.data = []
         for sequence_id in dict_data:

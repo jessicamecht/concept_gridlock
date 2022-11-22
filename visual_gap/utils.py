@@ -33,7 +33,10 @@ def get_common_path(hyper_params):
 
     def get(key): return hyper_params[key]
 
-    common_path = get('model_type') + {
+    common_path = get('model_type') 
+    if get('image_feature') == True:
+        common_path += '_wimg'
+    common_path += {
         "MLP": 			lambda: "_latent_size_{}_dropout_{}".format(
                             get('latent_size'), get('dropout')
                         ),
@@ -43,13 +46,13 @@ def get_common_path(hyper_params):
                             get('dropout'), get('max_seq_len')
                         ),
 
-        "Transformer": 	lambda: "wimg_latent_size_{}_dropout_{}_heads_{}_blocks_{}_max_seq_len_{}".format(
+        "Transformer": 	lambda: "_latent_size_{}_dropout_{}_heads_{}_blocks_{}_max_seq_len_{}".format(
                             get('latent_size'), get('dropout'), 
                             get('num_heads'), get('num_blocks'),
                             get('max_seq_len')
                         ),
 
-        "GapFormer": 	lambda: "wimg_latent_size_{}_dropout_{}_heads_{}_blocks_{}_max_seq_len_{}_fusion_{}".format(
+        "GapFormer": 	lambda: "_latent_size_{}_dropout_{}_heads_{}_blocks_{}_max_seq_len_{}_fusion_{}".format(
                             get('latent_size'), get('dropout'), 
                             get('num_heads'), get('num_blocks'),
                             get('max_seq_len'), get('gapformer_fusion')
@@ -63,6 +66,7 @@ def get_common_path(hyper_params):
     if get('horizon') == True: common_path += "_horizon_K_{}_decay_{}".format(get('horizon_K'), get('horizon_decay'))
 
     if get('model_type') != 'MLP' and get('staggered_training') == True: common_path += "_seq_step_{}".format(get('seq_step_size'))
+
 
     common_path += "_bsz_{}_wd_{}_lr_{}".format(
         get('batch_size'), get('weight_decay'), get('lr')

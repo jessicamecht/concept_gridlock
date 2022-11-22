@@ -181,6 +181,7 @@ class Transformer(torch.nn.Module):
         context_embed = context_seq                         # [ bsz x seq_len x features ]
         curr_distance_embed = dist_seq.unsqueeze(-1)        # [ bsz x seq_len x 1 ]
         # print (context_embed.shape)
+        # sys.exit()
         # print (curr_distance_embed.shape)
         # print ("eval", eval)
         if not eval:

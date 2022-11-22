@@ -7,17 +7,30 @@ def get_best(all_logs, model, time_horizon, VAL_METRIC = "RMSE_mean"):
         "copy": "copy.txt",
         "linear": "linear.txt",
 
-        "MLP": "MLP(?!.*horizon.*)",
-        'MLP_Horizon': "MLP.*horizon",
+        "MLP": "MLP(?!.*wimg.*)(?!.*horizon.*)",
+        'MLP_Horizon': "MLP(?!.*wimg.*).*horizon",
         
-        "RNN": "RNN(?!.*horizon.*)",
-        "RNN_Horizon": "RNN.*horizon",
+        "RNN": "RNN(?!.*wimg.*)(?!.*horizon.*)",
+        "RNN_Horizon": "RNN(?!.*wimg.*).*horizon",
         
-        "Transformer": "Transformer(?!.*horizon.*)",
-        "Transformer_Horizon": "Transformer.*horizon",
+        "Transformer": "Transformer(?!.*wimg.*)(?!.*horizon.*)",
+        "Transformer_Horizon": "Transformer(?!.*wimg.*).*horizon",
 
-        "GapFormer": "GapFormer(?!.*horizon.*)",
-        "GapFormer_Horizon": "GapFormer.*horizon",
+        "GapFormer": "GapFormer(?!.*wimg.*)(?!.*horizon.*)",
+        "GapFormer_Horizon": "GapFormer(?!.*wimg.*).*horizon",
+
+       	"MLP_wimg": "MLP.*wimg(?!.*horizon.*)",
+        'MLP_wimg_Horizon': "MLP.*wimg.*horizon",
+        
+        "RNN_wimg": "RNN.*wimg(?!.*horizon.*)",
+        "RNN_wimg_Horizon": "RNN.*wimg.*horizon",
+        
+        "Transformer_wimg": "Transformer.*wimg(?!.*horizon.*)",
+        "Transformer_wimg_Horizon": "Transformer.*wimg.*horizon",
+
+        "GapFormer_wimg": "GapFormer.*wimg(?!.*horizon.*)",
+        "GapFormer_wimg_Horizon": "GapFormer.*wimg.*horizon",
+
     }[model] + ".*"
     
     relevant_logs = []
@@ -67,8 +80,8 @@ def get_best(all_logs, model, time_horizon, VAL_METRIC = "RMSE_mean"):
 
 if __name__ == "__main__":
 	for dataset, sampling_freq in [ 
-		[ "toyota", 10.0 ], 
-		[ "openacc", 10.0 ],
+		# [ "toyota", 10.0 ], 
+		# [ "openacc", 10.0 ],
 		[ "once", 2.0 ]
 	]:
 		
@@ -88,6 +101,15 @@ if __name__ == "__main__":
 			'Transformer_Horizon',
 			'GapFormer',
 			'GapFormer_Horizon',
+			'MLP_wimg',
+        	'MLP_wimg_Horizon',
+        	"RNN_wimg",
+        	"RNN_wimg_Horizon",
+            "Transformer_wimg",
+        	"Transformer_wimg_Horizon",
+        	"GapFormer_wimg",
+        	"GapFormer_wimg_Horizon",
+
 		]:
 			results, best_log = get_best(all_logs, kind, int(10.0 * sampling_freq)) # 10 seconds in the future
 
