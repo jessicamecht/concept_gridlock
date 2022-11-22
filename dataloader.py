@@ -37,7 +37,7 @@ class ONCEDataset(Dataset):
     ):
         assert dataset_type in ["train", "val", "test"]
         self.dataset_type = dataset_type
-        self.max_len = 150
+        self.max_len = 250
         self.multitask = multitask
         self.min_angle, self.max_angle, self.range_angle = (2.1073424e-08, 0.102598816, 0.102598794)
         self.out_size = out_size
@@ -52,8 +52,6 @@ class ONCEDataset(Dataset):
             data_path = "/data1/jessica/data/toyota/once_w_lanes_compressed_raw_small_multitask_0-13.hfd5"
             paths = [data_path]
             start, end = (0,6) if dataset_type == "val" else (6, -1)
-        data_path = "../data/once_w_lanes_compressed_raw_small_multitask_0-13.hfd5"
-        paths = [data_path]
         self.people_seqs = []
         for data_path in paths:
             with h5py.File(data_path, "r") as f:
@@ -75,7 +73,7 @@ class ONCEDataset(Dataset):
                             continue
                         iter_dict[key] = ds_obj
                     self.people_seqs.append(iter_dict)
-        self.people_seqs = self.people_seqs[0:9] if dataset_type=="train" else self.people_seqs[9:]
+        #self.people_seqs = self.people_seqs[0:9] if dataset_type=="train" else self.people_seqs[9:]
 
     def __len__(self):
         return len(self.people_seqs)
