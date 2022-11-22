@@ -30,42 +30,38 @@ class LaneModule(pl.LightningModule):
             loss_distance = self.loss(logits_distance.squeeze(), distance.squeeze())
             loss = (loss_angle + loss_distance)/2
         else:
-            loss = self.loss(logits.squeeze(), angle.squeeze())
+            loss = torch.sqrt(self.loss(logits.squeeze(), angle.squeeze()))
         return loss
+
     def training_step(self, batch, batch_idx):
         meta, image_array, segm_masks, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array)
-        print('logits', logits.dtype, angle.dtype)
         loss = self.calculate_loss(logits, angle, distance)
         self.log_dict({"train_loss": loss}, on_epoch=True)
         return loss
+
     def validation_step(self, batch, batch_idx):
         meta, image_array, segm_masks, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array)
-        print('logits', logits.dtype, angle.dtype)
         loss = self.calculate_loss(logits, angle, distance)
         self.log_dict({"val_loss": loss}, on_epoch=True)
         return loss
+
     def test_step(self, batch, batch_idx):
         meta, image_array, segm_masks, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array)
-        print('logits', logits.dtype, angle.dtype)
         loss = self.calculate_loss(logits, angle, distance)
         self.log_dict({"test_loss": loss}, on_epoch=True)
         return loss 
 
     def training_epoch_end(self, outputs):
         losses = torch.mean(torch.stack([x['loss'] for x in outputs]))
-        print("train losses", losses)
         self.log_dict({"train_loss_accumulated": losses })
     def validation_epoch_end(self, outputs):
-        print(outputs)
         losses = torch.mean(torch.stack([x for x in outputs]))
-        print("val losses", losses)
         self.log_dict({"val_loss_accumulated": losses })
     def test_epoch_end(self, outputs):
         losses = torch.mean(torch.stack([x for x in outputs]))
-        print("test losses", losses)
         self.log_dict({"test_loss_accumulated": losses })
 
     def train_dataloader(self):
@@ -99,7 +95,6 @@ def pad_collate(batch):
     s_lens = [len(x) for x in segm]
     a_lens = [len(y) for y in angle]
     d_lens = [len(y) for y in dist] if dist[0] != None else None 
-
 
     m_pad = pad_sequence(meta, batch_first=True, padding_value=0)
     i_pad = pad_sequence(img, batch_first=True, padding_value=0)

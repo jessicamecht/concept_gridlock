@@ -13,9 +13,9 @@ if __name__ == "__main__":
         #fast_dev_run=True,
         accelerator="gpu",
         devices=1 if torch.cuda.is_available() else None, 
-        max_epochs=2,
+        max_epochs=10000,
         default_root_dir="./checkpoints",
-        callbacks=[TQDMProgressBar(refresh_rate=20), EarlyStopping(monitor="val_loss", mode="min")],
+        callbacks=[TQDMProgressBar(refresh_rate=20)],#, EarlyStopping(monitor="train_loss", mode="min")],
         )
     trainer.fit(module)
     trainer.test(module)

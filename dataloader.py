@@ -52,10 +52,12 @@ class ONCEDataset(Dataset):
             data_path = "/data1/jessica/data/toyota/once_w_lanes_compressed_raw_small_multitask_0-13.hfd5"
             paths = [data_path]
             start, end = (0,6) if dataset_type == "val" else (6, -1)
+        data_path = "../data/once_w_lanes_compressed_raw_small_multitask_0-13.hfd5"
+        paths = [data_path]
         self.people_seqs = []
         for data_path in paths:
             with h5py.File(data_path, "r") as f:
-                for i, seq_key in enumerate(list(f.keys())[start:end]):
+                for i, seq_key in enumerate(list(f.keys())):
                     iter_dict = {}
                     keys_ = f[seq_key].keys()
                     for key in keys_:
@@ -73,13 +75,14 @@ class ONCEDataset(Dataset):
                             continue
                         iter_dict[key] = ds_obj
                     self.people_seqs.append(iter_dict)
+        self.people_seqs = self.people_seqs[0:9] if dataset_type=="train" else self.people_seqs[9:]
 
     def __len__(self):
         return len(self.people_seqs)
 
     def __getitem__(self, idx):
         sequences = self.people_seqs[idx]#keys are 'angle', 'id', 'image_array', 'lanes_2d', 'lanes_3d', 'meta', 'pos', 'segm_masks', 'seq_name_x', 'speed', 'times'
-        rint = 0#random.randint(0,max(0, len(sequences['image_array'])-(self.max_len+1))) to randomize sequence
+        rint = random.randint(0,max(0, len(sequences['image_array'])-(self.max_len+1))) #to randomize sequence
         start = rint if len(sequences['image_array']) > self.max_len else 0
         end = rint+self.max_len if len(sequences['image_array']) > self.max_len else -1
         images = torch.from_numpy(sequences['image_array'])[start:end].permute(0,3,1,2)
