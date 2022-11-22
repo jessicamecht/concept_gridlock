@@ -5,6 +5,7 @@ from transformers import LongformerModel, LongformerConfig
 import torch.nn.functional as F
 import math 
 from timm.models.vision_transformer import vit_base_patch16_224
+from torchvision.models import resnet18, ResNet18_Weights
 
 def dfs_freeze(model):
     for name, child in model.named_children():
@@ -71,25 +72,36 @@ class VTN(nn.Module):
     https://arxiv.org/abs/2102.00719
     """
 
-    def __init__(self):
+    def __init__(self,multitask="angle", backbone="resnet"):
         super(VTN, self).__init__()
-        self._construct_network()
+        self._construct_network(multitask, backbone)
 
-    def _construct_network(self):
+    def _construct_network(self, multitask, backbone):
         #full_resnet = models.resnet18(pretrained=True)
         #dfs_freeze(full_resnet)
         #resnet = torch.nn.Sequential(*(list(full_resnet.children())[:-1] + [nn.Linear(2048, 768)]))
-        self.backbone = vit_base_patch16_224(pretrained=True,num_classes=0,drop_path_rate=0.0,drop_rate=0.0)
+        if backbone == "vit":
+            self.backbone = vit_base_patch16_224(pretrained=True,num_classes=0,drop_path_rate=0.0,drop_rate=0.0)
+            embed_dim = self.backbone.embed_dim
+            num_attention_heads=12
+            mlp_size = 768
+        elif backbone== "resnet":
+            resnet = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
+            self.backbone = torch.nn.Sequential(*list(resnet.children())[:-1])
+            embed_dim = 512
+            num_attention_heads=8
+            mlp_size = 512
+
         dfs_freeze(self.backbone)
+        self.multitask = multitask
         
-        embed_dim = self.backbone.embed_dim
         self.cls_token = nn.Parameter(torch.randn(1, 1, embed_dim))
         #self.pe = PositionalEncoding(embed_dim) #TODO add positional encoding
 
         self.temporal_encoder = VTNLongformerModel(
             embed_dim=embed_dim,
             max_position_embeddings=288,
-            num_attention_heads=12,
+            num_attention_heads=num_attention_heads,
             num_hidden_layers=3,
             attention_mode='sliding_chunks',
             pad_token_id=-1,
@@ -99,12 +111,20 @@ class VTN(nn.Module):
             hidden_dropout_prob=0.1)
         num_classes = 1
         self.mlp_head = nn.Sequential(
-            nn.LayerNorm(768),
-            nn.Linear(768, 768),
+            nn.LayerNorm(mlp_size),
+            nn.Linear(mlp_size, mlp_size),
             nn.GELU(),
             nn.Dropout(0.5),
-            nn.Linear(768, num_classes)
+            nn.Linear(mlp_size, num_classes)
         )
+        if self.multitask:
+            self.mlp_head_2 = nn.Sequential(
+                nn.LayerNorm(mlp_size),
+                nn.Linear(mlp_size, mlp_size),
+                nn.GELU(),
+                nn.Dropout(0.5),
+                nn.Linear(mlp_size, num_classes)
+            )
 
     def forward(self, x, bboxes=None):
 
@@ -151,5 +171,10 @@ class VTN(nn.Module):
         x = x["last_hidden_state"]
         b, s, e = x.shape
         x = x.reshape(b*s, e)
+        if self.multitask:
+            x2 = self.mlp_head_2(x)
         x = self.mlp_head(x)
-        return x[1:F+1]
+        if self.multitask != "multitask":
+            return x[1:F+1]
+        else:
+            return x[1:F+1], x2[1:F+1]

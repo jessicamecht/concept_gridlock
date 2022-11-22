@@ -1,4 +1,5 @@
 import pytorch_lightning as pl
+import pytorch_lightning as pl
 import torch
 from dataloader import *
 from torch.utils.data import DataLoader
@@ -10,33 +11,60 @@ import numpy as np
 
 class LaneModule(pl.LightningModule):
 
-    def __init__(self, model, bs=1):
+    def __init__(self, model, bs=1, multitask="angle"):
         super(LaneModule, self).__init__()
         self.model = model
         self.num_workers = 10
+        self.multitask = multitask
         self.bs = bs
         self.loss = nn.MSELoss()
+        if self.multitask  == "multitask":
+            self.distanceloss = nn.MSELoss()
     def forward(self, x):
         return self.model(x)
+
+    def calculate_loss(self, logits, angle, distance):
+        if self.multitask == "multitask":
+            logits_angle, logits_dist = logits
+            loss_angle = torch.sqrt(self.loss(logits_angle.squeeze(), angle.squeeze()))
+            loss_distance = torch.sqrt(self.loss(logits_dist.squeeze(), distance.squeeze()))
+            loss = (loss_angle + loss_distance)/2
+            self.log_dict({"train_loss_angle": loss_angle}, on_epoch=True)
+            self.log_dict({"train_loss_distance": loss_distance}, on_epoch=True)
+        else:
+            loss = torch.sqrt(self.loss(logits.squeeze(), angle.squeeze()))
+        return loss
+
     def training_step(self, batch, batch_idx):
-        meta, image_array, segm_masks, angle, m_lens, i_lens, s_lens, a_lens = batch
+        meta, image_array, segm_masks, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array)
-        loss = self.loss(logits.squeeze(), angle.squeeze())
-        self.log_dict({"loss1": loss})
+        loss = self.calculate_loss(logits, angle, distance)
+        self.log_dict({"train_loss": loss}, on_epoch=True)
         return loss
+
     def validation_step(self, batch, batch_idx):
-        meta, image_array, segm_masks, angle, m_lens, i_lens, s_lens, a_lens = batch
+        meta, image_array, segm_masks, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array)
-        loss = self.loss(logits.squeeze(), angle.squeeze())
+        loss = self.calculate_loss(logits, angle, distance)
+        self.log_dict({"val_loss": loss}, on_epoch=True)
         return loss
+
     def test_step(self, batch, batch_idx):
-        meta, image_array, segm_masks, angle, m_lens, i_lens, s_lens, a_lens = batch
+        meta, image_array, segm_masks, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array)
-        loss = self.loss(logits.squeeze(), angle.squeeze())
-        return loss
+        loss = self.calculate_loss(logits, angle, distance)
+        self.log_dict({"test_loss": loss}, on_epoch=True)
+        return loss 
+
     def training_epoch_end(self, outputs):
         losses = torch.mean(torch.stack([x['loss'] for x in outputs]))
-        self.log_dict({"loss_epoch1": losses })
+        self.log_dict({"train_loss_accumulated": losses })
+    def validation_epoch_end(self, outputs):
+        losses = torch.mean(torch.stack([x for x in outputs]))
+        self.log_dict({"val_loss_accumulated": losses })
+    def test_epoch_end(self, outputs):
+        losses = torch.mean(torch.stack([x for x in outputs]))
+        self.log_dict({"test_loss_accumulated": losses })
 
     def train_dataloader(self):
         return self.get_dataloader(dataset_type="train")
@@ -52,18 +80,27 @@ class LaneModule(pl.LightningModule):
         return g_opt
 
     def get_dataloader(self, dataset_type):
-        return DataLoader(ONCEDataset(dataset_type=dataset_type), batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
+        return DataLoader(ONCEDataset(dataset_type=dataset_type, multitask=self.multitask), batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
+
+def pad_collate1(batch):
+    meta, img, segm, angle, dist = zip(*batch)
+    pads = ()
+    for l in [meta, img, segm, angle, dist]:
+        lens = [len(x) for x in l] if l[0] != None else None
+        pads = pads + (pad_sequence(lens, batch_first=True, padding_value=0))
+    return pads
 
 def pad_collate(batch):
-    meta, img, segm, angle = zip(*batch)
+    meta, img, segm, angle, dist = zip(*batch)
     m_lens = [len(x) for x in meta]
     i_lens = [len(y) for y in img]
     s_lens = [len(x) for x in segm]
     a_lens = [len(y) for y in angle]
+    d_lens = [len(y) for y in dist] if dist[0] != None else None 
 
     m_pad = pad_sequence(meta, batch_first=True, padding_value=0)
     i_pad = pad_sequence(img, batch_first=True, padding_value=0)
     segm_pad = pad_sequence(segm, batch_first=True, padding_value=0)
     a_pad = pad_sequence(angle, batch_first=True, padding_value=0)
-
-    return m_pad, i_pad, segm_pad, a_pad, m_lens, i_lens, s_lens, a_lens
+    d_pad = pad_sequence(dist, batch_first=True, padding_value=0) if dist[0] != None else None 
+    return m_pad, i_pad, segm_pad, a_pad,d_pad, m_lens, i_lens, s_lens, a_lens, d_lens
