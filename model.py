@@ -71,16 +71,17 @@ class VTN(nn.Module):
     https://arxiv.org/abs/2102.00719
     """
 
-    def __init__(self):
+    def __init__(self,multitask=False):
         super(VTN, self).__init__()
-        self._construct_network()
+        self._construct_network(multitask)
 
-    def _construct_network(self):
+    def _construct_network(self, multitask):
         #full_resnet = models.resnet18(pretrained=True)
         #dfs_freeze(full_resnet)
         #resnet = torch.nn.Sequential(*(list(full_resnet.children())[:-1] + [nn.Linear(2048, 768)]))
         self.backbone = vit_base_patch16_224(pretrained=True,num_classes=0,drop_path_rate=0.0,drop_rate=0.0)
         dfs_freeze(self.backbone)
+        self.multitask = multitask
         
         embed_dim = self.backbone.embed_dim
         self.cls_token = nn.Parameter(torch.randn(1, 1, embed_dim))
@@ -105,6 +106,14 @@ class VTN(nn.Module):
             nn.Dropout(0.5),
             nn.Linear(768, num_classes)
         )
+        if self.multitask:
+            self.mlp_head_2 = nn.Sequential(
+                nn.LayerNorm(768),
+                nn.Linear(768, 768),
+                nn.GELU(),
+                nn.Dropout(0.5),
+                nn.Linear(768, num_classes)
+            )
 
     def forward(self, x, bboxes=None):
 
@@ -151,5 +160,7 @@ class VTN(nn.Module):
         x = x["last_hidden_state"]
         b, s, e = x.shape
         x = x.reshape(b*s, e)
+        if self.multitask:
+            x2 = self.mlp_head_2(x)
         x = self.mlp_head(x)
-        return x[1:F+1]
+        return x[1:F+1] if not self.multitask else x2[1:F+1]

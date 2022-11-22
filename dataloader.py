@@ -12,7 +12,20 @@ from collections import namedtuple
 import h5py
 import matplotlib.pyplot as plt
 import time
+from decimal import Decimal
 import random
+
+def get_speed(vel):
+    assert(len(vel) == 3)
+    return (Decimal(vel[0]) ** Decimal(2) + Decimal(vel[1]) ** Decimal(2) + Decimal(vel[2]) ** Decimal(2)) ** Decimal(0.5)
+
+def angle(v1, v2):
+    v1 = [Decimal(v1[0].item()), Decimal(v1[1].item()), Decimal(v1[2].item())]
+    v2 = [Decimal(v2[0].item()), Decimal(v2[1].item()), Decimal(v2[2].item())]
+    # [0, np.pi]
+    num = np.dot(v1, v2)
+    denom = (get_speed(v1) * get_speed(v2))
+    return np.arccos(float(num / denom)) 
 
 class ONCEDataset(Dataset):
     def __init__(
@@ -46,7 +59,18 @@ class ONCEDataset(Dataset):
                     iter_dict = {}
                     keys_ = f[seq_key].keys()
                     for key in keys_:
-                        ds_obj = f[seq_key][key][()]
+                        if key == "angle": continue
+                        ds_obj = f[seq_key][key][()]#[0::subsample]
+                        if key == "pos":
+                            new_angles = [0.0]
+                            for i in range(1, len(ds_obj)):
+                                prev = ds_obj[i-1]
+                                curr = ds_obj[i]
+                                an = angle(prev, curr)*(180/np.pi)
+                                new_angles.append(an)
+                            ds_obj = np.array(new_angles)
+                            iter_dict["angle"] = ds_obj
+                            continue
                         iter_dict[key] = ds_obj
                     self.people_seqs.append(iter_dict)
 
@@ -62,10 +86,9 @@ class ONCEDataset(Dataset):
         masks = torch.from_numpy(sequences['segm_masks'])[start:end].permute(0,3,1,2)
         images = F.resize(self.normalize(images), (224, 224))
         masks = F.resize(masks, (224, 224))
-        angles = torch.from_numpy(sequences['angle'])[start:end]*(180/np.pi)
+        angles = torch.from_numpy(sequences['angle'])[start:end]#*(180/np.pi)
         distances = torch.from_numpy(sequences['distance'])[start:end] if self.multitask else None
-        angles = angles - self.min_angle/self.range_angle
-
-        res = torch.zeros(len(sequences['angle']))[start:end], images,  masks,  angles, distances
+        #angles = angles - self.min_angle/self.range_angle
+        res = torch.zeros(len(sequences['angle']))[start:end], images,  masks,  angles.type(torch.float32), distances
         
         return res 

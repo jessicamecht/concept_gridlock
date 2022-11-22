@@ -35,26 +35,38 @@ class LaneModule(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         meta, image_array, segm_masks, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array)
+        print('logits', logits.dtype, angle.dtype)
         loss = self.calculate_loss(logits, angle, distance)
         self.log_dict({"train_loss": loss}, on_epoch=True)
         return loss
     def validation_step(self, batch, batch_idx):
         meta, image_array, segm_masks, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array)
+        print('logits', logits.dtype, angle.dtype)
         loss = self.calculate_loss(logits, angle, distance)
-        print(loss, 'losslosslossloss')
         self.log_dict({"val_loss": loss}, on_epoch=True)
         return loss
     def test_step(self, batch, batch_idx):
         meta, image_array, segm_masks, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array)
+        print('logits', logits.dtype, angle.dtype)
         loss = self.calculate_loss(logits, angle, distance)
         self.log_dict({"test_loss": loss}, on_epoch=True)
         return loss 
 
     def training_epoch_end(self, outputs):
         losses = torch.mean(torch.stack([x['loss'] for x in outputs]))
-        self.log_dict({"test_loss_acc": losses })
+        print("train losses", losses)
+        self.log_dict({"train_loss_accumulated": losses })
+    def validation_epoch_end(self, outputs):
+        print(outputs)
+        losses = torch.mean(torch.stack([x for x in outputs]))
+        print("val losses", losses)
+        self.log_dict({"val_loss_accumulated": losses })
+    def test_epoch_end(self, outputs):
+        losses = torch.mean(torch.stack([x for x in outputs]))
+        print("test losses", losses)
+        self.log_dict({"test_loss_accumulated": losses })
 
     def train_dataloader(self):
         return self.get_dataloader(dataset_type="train")
@@ -71,6 +83,14 @@ class LaneModule(pl.LightningModule):
 
     def get_dataloader(self, dataset_type):
         return DataLoader(ONCEDataset(dataset_type=dataset_type), batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
+
+def pad_collate1(batch):
+    meta, img, segm, angle, dist = zip(*batch)
+    pads = ()
+    for l in [meta, img, segm, angle, dist]:
+        lens = [len(x) for x in l] if l[0] != None else None
+        pads = pads + (pad_sequence(lens, batch_first=True, padding_value=0))
+    return pads
 
 def pad_collate(batch):
     meta, img, segm, angle, dist = zip(*batch)
