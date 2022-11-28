@@ -80,11 +80,11 @@ class ONCEDataset(Dataset):
 
     def __getitem__(self, idx):
         sequences = self.people_seqs[idx]#keys are 'angle', 'id', 'image_array', 'lanes_2d', 'lanes_3d', 'meta', 'pos', 'segm_masks', 'seq_name_x', 'speed', 'times'
-        rint = 0#random.randint(0,max(0, len(sequences['image_array'])-(self.max_len+1))) #to randomize sequence
+        rint = random.randint(0,max(0, len(sequences['image_array'])-(self.max_len+1))) #to randomize sequence
         start = rint if len(sequences['image_array']) > self.max_len else 0
         end = rint+self.max_len if len(sequences['image_array']) > self.max_len else -1
-        images = torch.from_numpy(sequences['image_array'])[start:end].permute(0,3,1,2)
-        masks = torch.from_numpy(sequences['segm_masks'])[start:end].permute(0,3,1,2)
+        images = torch.from_numpy(sequences['image_array'].astype(int))[start:end].permute(0,3,1,2)
+        masks = torch.from_numpy(sequences['segm_masks'].astype(int))[start:end].permute(0,3,1,2)
         images = F.resize(self.normalize(images), (224, 224))
         masks = F.resize(masks, (224, 224))
         angles = torch.from_numpy(sequences['angle'])[start:end]#*(180/np.pi)
