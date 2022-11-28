@@ -1,17 +1,10 @@
-from torch.utils.data import Dataset, DataLoader  # For custom data-sets
+from torch.utils.data import Dataset  # For custom data-sets
 import torchvision.transforms as transforms
 from torchvision.transforms import functional as F
-import os
-import math 
 import numpy as np
-from PIL import Image
-from torch.utils.data import DataLoader
 import torch
-import pandas as pd
-from collections import namedtuple
 import h5py
-import matplotlib.pyplot as plt
-import time
+from scipy.spatial.transform import Rotation
 from decimal import Decimal
 import random
 
@@ -44,14 +37,14 @@ class ONCEDataset(Dataset):
         self.use_transform = use_transform
         self.normalize = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
         if dataset_type == "train":
-            data_path = "/data1/jessica/data/toyota/once_w_lanes_compressed_raw_small_multitask_37-end.hfd5" 
-            data_path2 = "/data1/jessica/data/toyota/once_w_lanes_compressed_raw_small_multitask_14-37.hfd5"
-            paths = [data_path2, data_path]
-            start, end = (0,-1) 
-        elif dataset_type == "test" or dataset_type == "val":
-            data_path = "/data1/jessica/data/toyota/once_w_lanes_compressed_raw_small_multitask_0-13.hfd5"
+            data_path = "/data1/jessica/data/toyota/once_w_lanes_compressed_raw_small_multitask_all_train.hfd5"
             paths = [data_path]
-            start, end = (0,6) if dataset_type == "val" else (6, -1)
+        elif dataset_type == "test":
+            data_path = "/data1/jessica/data/toyota/once_w_lanes_compressed_raw_small_multitask_all_test.hfd5"
+            paths = [data_path]     
+        elif dataset_type == "val":
+            data_path = "/data1/jessica/data/toyota/once_w_lanes_compressed_raw_small_multitask_all_val.hfd5"
+            paths = [data_path]
         self.people_seqs = []
         for data_path in paths:
             with h5py.File(data_path, "r") as f:
@@ -62,18 +55,17 @@ class ONCEDataset(Dataset):
                         if key == "angle": continue
                         ds_obj = f[seq_key][key][()]#[0::subsample]
                         if key == "pos":
-                            new_angles = [0.0]
+                            new_angles = []
                             for i in range(1, len(ds_obj)):
-                                prev = ds_obj[i-1]
-                                curr = ds_obj[i]
-                                an = angle(prev, curr)*(180/np.pi)
-                                new_angles.append(an)
+                                rotation = Rotation.from_quat(ds_obj[i][:4]).as_euler('zyx', degrees=True)    
+                                prev_rotation = Rotation.from_quat(ds_obj[i-1][:4]).as_euler('zyx', degrees=True)       
+                                rot = rotation-prev_rotation
+                                new_angles.append(rot)
                             ds_obj = np.array(new_angles)
                             iter_dict["angle"] = ds_obj
                             continue
                         iter_dict[key] = ds_obj
                     self.people_seqs.append(iter_dict)
-        #self.people_seqs = self.people_seqs[0:9] if dataset_type=="train" else self.people_seqs[9:]
 
     def __len__(self):
         return len(self.people_seqs)
