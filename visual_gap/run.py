@@ -116,7 +116,7 @@ For e.g. for a machine with 2 GPUs, and if gpu_ids = [ -1, -1, 0, 0, 1, 1 ]
 - 2 on the 2nd GPU (GPU_ID = 1) (indicated by 1)
 Note that if provided GPU_ID > #GPUs available; the configuration will be trained on the CPU
 '''
-gpu_ids = [ 1, 1, 2, 2, 3 ]
+gpu_ids = [ 1, 1, 2, 3, 3 ]
 
 ################## CONFIGURATION INPUT ENDS ###################
 
