@@ -20,6 +20,7 @@ def angle(v1, v2):
     num = np.dot(v1, v2)
     denom = (get_speed(v1) * get_speed(v2))
     return np.arccos(float(num / denom)) 
+
 def get_angles(seq):
     new_angles = []
     for i in range(1, len(seq)):
@@ -56,6 +57,7 @@ class ONCEDataset(Dataset):
         self.out_size = out_size
         self.use_transform = use_transform
         self.normalize = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+        self.normalize_values = True
         if dataset_type == "train":
             data_path = "/data1/jessica/data/toyota/once_w_lanes_compressed_raw_small_multitask_all_train.hfd5"
             paths = [data_path]
@@ -72,20 +74,27 @@ class ONCEDataset(Dataset):
             with h5py.File(data_path, "r") as f:
                 self.all_angle_max = 0 
                 self.all_angle_min = 100000
+                self.all_dist_max = 0 
+                self.all_dist_min = 100000
                 for i, seq_key in enumerate(list(f.keys())):
                     person_seq = {}
                     keys_ = f[seq_key].keys()
                     for key in keys_:
                         if key == "angle": continue
                         seq = f[seq_key][key][()]#[0::subsample]
-                        #maxseq = seq.max()
-                        #minseq = seq.min()
-                        #self.all_angle_max = maxseq if maxseq > self.all_angle_max else self.all_angle_max
-                        #self.all_angle_min = minseq if minseq < self.all_angle_min else self.all_angle_min
                         if key == "pos":
                             seq = get_angles(seq)
                             person_seq["angle"] = seq
+                            maxseq = seq.max()
+                            minseq = seq.min()
+                            self.all_angle_max = maxseq if maxseq > self.all_angle_max and dataset_type == "train" else self.all_angle_max
+                            self.all_angle_min = minseq if minseq < self.all_angle_min and dataset_type == "train" else self.all_angle_min
                             continue
+                        if key == "distance":
+                            maxseq = seq.max()
+                            minseq = seq.min()
+                            self.all_dist_max = maxseq if maxseq > self.all_dist_max and dataset_type == "train" else self.all_dist_max
+                            self.all_dist_min = minseq if minseq < self.all_dist_min and dataset_type == "train" else self.all_dist_min
                         person_seq[key] = seq
                     self.people_seqs.append(person_seq)
                     for i in range(1, len(person_seq['angle'])):
@@ -112,6 +121,9 @@ class ONCEDataset(Dataset):
         distances = torch.from_numpy(sequences['distance'])[start:end]
         #angles = angles - self.min_angle/self.range_angle'
         #images, masks = my_segmentation_transforms(images, masks)
+        if self.normalize_values: 
+            angles = (angles - self.all_angle_min)/(self.all_angle_max-self.all_angle_min)
+            distances = (angles - self.all_dist_min)/(self.all_dist_max-self.all_dist_min)
         res = torch.zeros(len(sequences['angle']))[start:end], images.type(torch.float32),  masks.type(torch.float32),  angles.type(torch.float32), distances .type(torch.float32)
         if self.multitask == "distance":
             res = torch.zeros(len(sequences['angle']))[start:end], images.type(torch.float32),  masks.type(torch.float32), distances.type(torch.float32), angles.type(torch.float32)
