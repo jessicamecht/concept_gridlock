@@ -20,6 +20,7 @@ if __name__ == "__main__":
         #fast_dev_run=True,
         accelerator="gpu",
         devices=[args.gpu_num] if torch.cuda.is_available() else None, 
+        #resume_from_checkpoint = "/home/jessica/personalized_driving_toyota/checkpoints_multitask/lightning_logs/version_0/checkpoints/epoch=52-step=2650.ckpt",
         max_epochs=250,
         default_root_dir=f"./checkpoints_{args.task}" ,
         callbacks=[TQDMProgressBar(refresh_rate=20)],#, EarlyStopping(monitor="train_loss", mode="min")],

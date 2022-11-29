@@ -1,9 +1,7 @@
 import torch 
 import torch.nn as nn 
-from torchvision import models 
 from transformers import LongformerModel, LongformerConfig
 import torch.nn.functional as F
-import math 
 from timm.models.vision_transformer import vit_base_patch16_224
 from torchvision.models import resnet18, ResNet18_Weights
 
@@ -23,8 +21,8 @@ class VTNLongformerModel(LongformerModel):
                  pad_token_id=-1,
                  attention_window=None,
                  intermediate_size=3072,
-                 attention_probs_dropout_prob=0.1,
-                 hidden_dropout_prob=0.1):
+                 attention_probs_dropout_prob=0.4,
+                 hidden_dropout_prob=0.5):
 
         self.config = LongformerConfig()
         self.config.attention_mode = attention_mode
@@ -152,12 +150,12 @@ class VTN(nn.Module):
         token_type_ids[:, 0] = 1
 
         # TODO add position_ids
-        #position_ids = position_ids.long()
-        #mask = attention_mask.ne(0).int()
-        #max_position_embeddings = self.temporal_encoder.config.max_position_embeddings
-        #position_ids = position_ids % (max_position_embeddings - 2)
-        #position_ids[:, 0] = max_position_embeddings - 2
-        #position_ids[mask == 0] = max_position_embeddings - 1
+        '''position_ids = position_ids.long()
+        mask = attention_mask.ne(0).int()
+        max_position_embeddings = self.temporal_encoder.config.max_position_embeddings
+        position_ids = position_ids % (max_position_embeddings - 2)
+        position_ids[:, 0] = max_position_embeddings - 2
+        position_ids[mask == 0] = max_position_embeddings - 1'''
 
         x = self.temporal_encoder(input_ids=None,
                                   attention_mask=attention_mask,
@@ -173,6 +171,7 @@ class VTN(nn.Module):
         x = x.reshape(b*s, e)
         if self.multitask:
             x2 = self.mlp_head_2(x)
+            #x = x.reshape(b*s, e)
         x = self.mlp_head(x)
         if self.multitask != "multitask":
             return x[1:F+1]

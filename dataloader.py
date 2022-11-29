@@ -6,6 +6,7 @@ import torch
 import h5py
 from scipy.spatial.transform import Rotation
 from decimal import Decimal
+import torchvision.transforms.functional as TF
 import random
 
 def get_speed(vel):
@@ -19,6 +20,25 @@ def angle(v1, v2):
     num = np.dot(v1, v2)
     denom = (get_speed(v1) * get_speed(v2))
     return np.arccos(float(num / denom)) 
+def get_angles(seq):
+    new_angles = []
+    for i in range(1, len(seq)):
+        rotation = Rotation.from_quat(seq[i][:4]).as_euler('zyx', degrees=True)    
+        prev_rotation = Rotation.from_quat(seq[i-1][:4]).as_euler('zyx', degrees=True)       
+        rot = rotation-prev_rotation
+        new_angles.append(rot[0])
+    new_angles.append(0)
+    return np.array(new_angles)
+
+def my_segmentation_transforms(image, segmentation):
+    if random.random() > 0.5:
+        angle = random.randint(-30, 30)
+        image = TF.rotate(image, angle)
+        segmentation = TF.rotate(segmentation, angle)
+    # more transforms ...
+    image =  TF.RandomGrayscale(image)
+    image = TF.gaussian_blur(image, 3)
+    return image, segmentation
 
 class ONCEDataset(Dataset):
     def __init__(
@@ -40,32 +60,41 @@ class ONCEDataset(Dataset):
             data_path = "/data1/jessica/data/toyota/once_w_lanes_compressed_raw_small_multitask_all_train.hfd5"
             paths = [data_path]
         elif dataset_type == "test":
-            data_path = "/data1/jessica/data/toyota/once_w_lanes_compressed_raw_small_multitask_all_test.hfd5"
-            paths = [data_path]     
-        elif dataset_type == "val":
+            data_path1 = "/data1/jessica/data/toyota/once_w_lanes_compressed_raw_small_multitask_all_test.hfd5"
             data_path = "/data1/jessica/data/toyota/once_w_lanes_compressed_raw_small_multitask_all_val.hfd5"
-            paths = [data_path]
+            paths = [data_path, data_path1]  
+        elif dataset_type == "val":
+            data_path1 = "/data1/jessica/data/toyota/once_w_lanes_compressed_raw_small_multitask_all_test.hfd5"
+            data_path = "/data1/jessica/data/toyota/once_w_lanes_compressed_raw_small_multitask_all_val.hfd5"
+            paths = [data_path, data_path1]
         self.people_seqs = []
         for data_path in paths:
             with h5py.File(data_path, "r") as f:
+                self.all_angle_max = 0 
+                self.all_angle_min = 100000
                 for i, seq_key in enumerate(list(f.keys())):
-                    iter_dict = {}
+                    person_seq = {}
                     keys_ = f[seq_key].keys()
                     for key in keys_:
                         if key == "angle": continue
-                        ds_obj = f[seq_key][key][()]#[0::subsample]
+                        seq = f[seq_key][key][()]#[0::subsample]
+                        #maxseq = seq.max()
+                        #minseq = seq.min()
+                        #self.all_angle_max = maxseq if maxseq > self.all_angle_max else self.all_angle_max
+                        #self.all_angle_min = minseq if minseq < self.all_angle_min else self.all_angle_min
                         if key == "pos":
-                            new_angles = []
-                            for i in range(1, len(ds_obj)):
-                                rotation = Rotation.from_quat(ds_obj[i][:4]).as_euler('zyx', degrees=True)    
-                                prev_rotation = Rotation.from_quat(ds_obj[i-1][:4]).as_euler('zyx', degrees=True)       
-                                rot = rotation-prev_rotation
-                                new_angles.append(rot)
-                            ds_obj = np.array(new_angles)
-                            iter_dict["angle"] = ds_obj
+                            seq = get_angles(seq)
+                            person_seq["angle"] = seq
                             continue
-                        iter_dict[key] = ds_obj
-                    self.people_seqs.append(iter_dict)
+                        person_seq[key] = seq
+                    self.people_seqs.append(person_seq)
+                    for i in range(1, len(person_seq['angle'])):
+                        person_seq_new = person_seq
+                        if len(person_seq[key][i:i+self.max_len+1]) < self.max_len: break
+                        for key in person_seq.keys():
+                            person_seq_new[key] = person_seq[key][i:i+self.max_len+1]
+                        self.people_seqs.append(person_seq_new)
+        print("len",len(self.people_seqs))
 
     def __len__(self):
         return len(self.people_seqs)
@@ -73,17 +102,18 @@ class ONCEDataset(Dataset):
     def __getitem__(self, idx):
         sequences = self.people_seqs[idx]#keys are 'angle', 'id', 'image_array', 'lanes_2d', 'lanes_3d', 'meta', 'pos', 'segm_masks', 'seq_name_x', 'speed', 'times'
         rint = random.randint(0,max(0, len(sequences['image_array'])-(self.max_len+1))) #to randomize sequence
-        start = rint if len(sequences['image_array']) > self.max_len else 0
-        end = rint+self.max_len if len(sequences['image_array']) > self.max_len else -1
-        images = torch.from_numpy(sequences['image_array'].astype(int))[start:end].permute(0,3,1,2)
+        start = 0#rint if len(sequences['image_array']) > self.max_len else 0
+        end = self.max_len#rint+self.max_len if len(sequences['image_array']) > self.max_len else -1
+        images = torch.from_numpy(sequences['image_array'].astype(float))[start:end].permute(0,3,1,2)
         masks = torch.from_numpy(sequences['segm_masks'].astype(int))[start:end].permute(0,3,1,2)
-        images = F.resize(self.normalize(images), (224, 224))
+        images = F.resize(self.normalize(images.type(torch.float)), (224, 224))
         masks = F.resize(masks, (224, 224))
         angles = torch.from_numpy(sequences['angle'])[start:end]#*(180/np.pi)
         distances = torch.from_numpy(sequences['distance'])[start:end]
-        #angles = angles - self.min_angle/self.range_angle
-        res = torch.zeros(len(sequences['angle']))[start:end], images,  masks,  angles.type(torch.float32), distances 
+        #angles = angles - self.min_angle/self.range_angle'
+        #images, masks = my_segmentation_transforms(images, masks)
+        res = torch.zeros(len(sequences['angle']))[start:end], images.type(torch.float32),  masks.type(torch.float32),  angles.type(torch.float32), distances .type(torch.float32)
         if self.multitask == "distance":
-            res = torch.zeros(len(sequences['angle']))[start:end], images,  masks, distances, angles.type(torch.float32)
+            res = torch.zeros(len(sequences['angle']))[start:end], images.type(torch.float32),  masks.type(torch.float32), distances.type(torch.float32), angles.type(torch.float32)
         
         return res 

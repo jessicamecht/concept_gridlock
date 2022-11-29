@@ -14,7 +14,7 @@ class LaneModule(pl.LightningModule):
     def __init__(self, model, bs=1, multitask="angle"):
         super(LaneModule, self).__init__()
         self.model = model
-        self.num_workers = 10
+        self.num_workers = 5
         self.multitask = multitask
         self.bs = bs
         self.loss = nn.MSELoss()
@@ -76,19 +76,19 @@ class LaneModule(pl.LightningModule):
         return self.get_dataloader(dataset_type="test")
 
     def configure_optimizers(self):
-        g_opt = torch.optim.Adam(self.model.parameters(), lr=1e-5)
+        g_opt = torch.optim.Adam(self.model.parameters(), lr=1e-5, weight_decay=1e-5)
         return g_opt
 
     def get_dataloader(self, dataset_type):
         return DataLoader(ONCEDataset(dataset_type=dataset_type, multitask=self.multitask), batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
 
-def pad_collate1(batch):
+'''def pad_collate1(batch):
     meta, img, segm, angle, dist = zip(*batch)
     pads = ()
     for l in [meta, img, segm, angle, dist]:
         lens = [len(x) for x in l] if l[0] != None else None
         pads = pads + (pad_sequence(lens, batch_first=True, padding_value=0))
-    return pads
+    return pads'''
 
 def pad_collate(batch):
     meta, img, segm, angle, dist = zip(*batch)
