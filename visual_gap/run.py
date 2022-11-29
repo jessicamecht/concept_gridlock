@@ -13,18 +13,18 @@ from utils import get_common_path
 
 common_hyper_params = {
     ## Some model hyper-params
-    'weight_decay':         list(map(float, [ 1e-6, 1e-5 ])),
+    'weight_decay':         list(map(float, [ 1e-6 ])),
 	'horizon': 				[ False, True ],
 	'staggered_training': 	[ False ],
 	'seq_step_size': 		[ 100 ], # NOTE: will not be used if staggered_training == False
-    'image_feature':        [ True],
+    'image_feature':        [ False, True],
     ## Transformer / GapFormer
-    'num_heads':            [ 1, 2],
-    'num_blocks':           [ 1, 2],
+    'num_heads':            [ 1],
+    'num_blocks':           [ 1],
 	'linear_attention': 	True,
 
     ## Future search
-    'horizon_K':              [ 5, 10, 25, 50 ],
+    'horizon_K':              [ 5, 25, 50 ],
     'horizon_decay':         [
         None,
         # 'linear',
@@ -41,10 +41,10 @@ common_hyper_params = {
 once_hyper_params = {
     'dataset': 'once',
 
-    'latent_size':          [ 128, 256, 512 ],
+    'latent_size':          [ 128, 512 ],
     'epochs':               300,
     
-    'max_seq_len':          [ 500, 750, 1_000, 2_000],
+    'max_seq_len':          [ 500, 1_000],
     'transformer_seq_len':  [ 50, 200, 500 ],
 }
 
@@ -64,7 +64,7 @@ rnn_models = {
     'model_type':           [ 'RNN' ],
     'batch_size':           [ 2 ], 
 	'lr':                   [ 0.0005 ],
-	'dropout':              [ 0.0, 0.2 ],
+	'dropout':              [ 0.2 ],
 }
 
 transformer_models = {
@@ -76,7 +76,7 @@ transformer_models = {
 
 gapformer_models = {
     'model_type':           [ 'GapFormer' ],
-    'batch_size':           [ 2 ], 
+    'batch_size':           [ 2, 4 ], 
 	'lr':                   [ 0.0005 ],
 	'dropout':              [ 0.0, 0.2 ],
     'gapformer_fusion':     [ 
@@ -101,7 +101,7 @@ final_search = [
     [ 
         baselines,
         non_sequential_models, 
-        rnn_models, 
+        # rnn_models, 
         transformer_models,
         gapformer_models,
     ]
@@ -116,7 +116,7 @@ For e.g. for a machine with 2 GPUs, and if gpu_ids = [ -1, -1, 0, 0, 1, 1 ]
 - 2 on the 2nd GPU (GPU_ID = 1) (indicated by 1)
 Note that if provided GPU_ID > #GPUs available; the configuration will be trained on the CPU
 '''
-gpu_ids = [ 1, 1, 2, 2, 3, 3 ]
+gpu_ids = [ 1, 1, 2, 2, 3 ]
 
 ################## CONFIGURATION INPUT ENDS ###################
 
@@ -176,7 +176,7 @@ print("Total processes after removing already finished jobs:", len(all_tasks))
 temp = defaultdict(int)
 for t in all_tasks: temp[t['model_type']] += 1
 print(dict(temp))
-sys.exit()
+# sys.exit()
 # exit()
 
 # STEP-2: Assign individual GPU processes
