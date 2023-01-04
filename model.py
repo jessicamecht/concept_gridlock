@@ -106,7 +106,7 @@ class VTN(nn.Module):
             attention_window=[18, 18, 18],
             intermediate_size=3072,
             attention_probs_dropout_prob=0.1,
-            hidden_dropout_prob=0.1)
+            hidden_dropout_prob=0.4)
         num_classes = 1
         self.mlp_head = nn.Sequential(
             nn.LayerNorm(mlp_size),

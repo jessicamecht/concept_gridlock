@@ -17,6 +17,7 @@ class LaneModule(pl.LightningModule):
         self.num_workers = 5
         self.multitask = multitask
         self.bs = bs
+        self.i = 0
         self.loss = nn.MSELoss()
         if self.multitask  == "multitask":
             self.distanceloss = nn.MSELoss()
@@ -26,12 +27,16 @@ class LaneModule(pl.LightningModule):
     def calculate_loss(self, logits, angle, distance):
         if self.multitask == "multitask":
             logits_angle, logits_dist = logits
+            print(logits_angle, angle, logits_dist, distance)
             loss_angle = torch.sqrt(self.loss(logits_angle.squeeze(), angle.squeeze()))
             loss_distance = torch.sqrt(self.loss(logits_dist.squeeze(), distance.squeeze()))
-            loss = (loss_angle + loss_distance)/2
+            loss = loss_angle, loss_distance
             self.log_dict({"train_loss_angle": loss_angle}, on_epoch=True)
             self.log_dict({"train_loss_distance": loss_distance}, on_epoch=True)
         else:
+            self.i += 1
+            if self.i %100 == 0:
+                print(logits, angle)
             loss = torch.sqrt(self.loss(logits.squeeze(), angle.squeeze()))
         return loss
 
@@ -46,13 +51,25 @@ class LaneModule(pl.LightningModule):
         meta, image_array, segm_masks, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array)
         loss = self.calculate_loss(logits, angle, distance)
+
+        if self.multitask == "multitask":
+            loss_angle, loss_dist = loss
+            loss = (loss_angle + loss_dist)/2
+            self.log_dict({"val_loss_dist": loss_dist}, on_epoch=True)
+            self.log_dict({"val_loss_angle": loss_angle}, on_epoch=True)
         self.log_dict({"val_loss": loss}, on_epoch=True)
+        
         return loss
 
     def test_step(self, batch, batch_idx):
         meta, image_array, segm_masks, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array)
         loss = self.calculate_loss(logits, angle, distance)
+        if self.multitask == "multitask":
+            loss_angle, loss_dist = loss
+            loss = (loss_angle + loss_dist)/2
+            self.log_dict({"test_loss_dist": loss_dist}, on_epoch=True)
+            self.log_dict({"test_loss_angle": loss_angle}, on_epoch=True)
         self.log_dict({"test_loss": loss}, on_epoch=True)
         return loss 
 
@@ -81,15 +98,7 @@ class LaneModule(pl.LightningModule):
 
     def get_dataloader(self, dataset_type):
         return DataLoader(ONCEDataset(dataset_type=dataset_type, multitask=self.multitask), batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
-
-'''def pad_collate1(batch):
-    meta, img, segm, angle, dist = zip(*batch)
-    pads = ()
-    for l in [meta, img, segm, angle, dist]:
-        lens = [len(x) for x in l] if l[0] != None else None
-        pads = pads + (pad_sequence(lens, batch_first=True, padding_value=0))
-    return pads'''
-
+        
 def pad_collate(batch):
     meta, img, segm, angle, dist = zip(*batch)
     m_lens = [len(x) for x in meta]

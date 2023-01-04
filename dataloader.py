@@ -51,16 +51,18 @@ class ONCEDataset(Dataset):
     ):
         assert dataset_type in ["train", "val", "test"]
         self.dataset_type = dataset_type
-        self.max_len = 250
+        self.max_len = 200
         self.multitask = multitask
         self.min_angle, self.max_angle, self.range_angle = (2.1073424e-08, 0.102598816, 0.102598794)
         self.out_size = out_size
         self.use_transform = use_transform
         self.normalize = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-        self.normalize_values = True
+        self.normalize_values = False
         if dataset_type == "train":
             data_path = "/data1/jessica/data/toyota/once_w_lanes_compressed_raw_small_multitask_all_train.hfd5"
-            paths = [data_path]
+            data_path1 = "/data1/jessica/data/toyota/once_w_lanes_compressed_raw_small_multitask_all_train_medium_0-33.hfd5"
+            data_path2 = "/data1/jessica/data/toyota/once_w_lanes_compressed_raw_small_multitask_all_train_medium_34end.hfd5"
+            paths = [data_path, data_path1, data_path2]
         elif dataset_type == "test":
             data_path1 = "/data1/jessica/data/toyota/once_w_lanes_compressed_raw_small_multitask_all_test.hfd5"
             data_path = "/data1/jessica/data/toyota/once_w_lanes_compressed_raw_small_multitask_all_val.hfd5"
@@ -122,8 +124,8 @@ class ONCEDataset(Dataset):
         #angles = angles - self.min_angle/self.range_angle'
         #images, masks = my_segmentation_transforms(images, masks)
         if self.normalize_values: 
-            angles = (angles - self.all_angle_min)/(self.all_angle_max-self.all_angle_min)
-            distances = (angles - self.all_dist_min)/(self.all_dist_max-self.all_dist_min)
+            angles = 2*((angles - self.all_angle_min)/(self.all_angle_max-self.all_angle_min))-1
+            distances = 2*((angles - self.all_dist_min)/(self.all_dist_max-self.all_dist_min))-1
         res = torch.zeros(len(sequences['angle']))[start:end], images.type(torch.float32),  masks.type(torch.float32),  angles.type(torch.float32), distances .type(torch.float32)
         if self.multitask == "distance":
             res = torch.zeros(len(sequences['angle']))[start:end], images.type(torch.float32),  masks.type(torch.float32), distances.type(torch.float32), angles.type(torch.float32)
