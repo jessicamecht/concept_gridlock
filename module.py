@@ -12,7 +12,7 @@ import numpy as np
 
 class LaneModule(pl.LightningModule):
 
-    def __init__(self, model, bs=8, multitask="angle", dataset="comma"):
+    def __init__(self, model, bs=1, multitask="angle", dataset="comma"):
         super(LaneModule, self).__init__()
         self.model = model
         self.dataset = dataset,
@@ -30,6 +30,7 @@ class LaneModule(pl.LightningModule):
         if self.multitask == "multitask":
             logits_angle, logits_dist = logits
             #print(logits_angle, angle, logits_dist, distance)
+            print(logits_angle.shape, angle.shape)
             loss_angle = torch.sqrt(self.loss(logits_angle.squeeze(), angle.squeeze()))
             loss_distance = torch.sqrt(self.loss(logits_dist.squeeze(), distance.squeeze()))
             loss = loss_angle, loss_distance

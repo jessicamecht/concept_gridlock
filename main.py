@@ -21,7 +21,7 @@ if __name__ == "__main__":
     model = VTN(multitask=multitask)
     module = LaneModule(model, multitask=multitask, dataset = args.dataset)
     ckpt_pth = f"./checkpoints_{args.dataset}_{args.task}"
-    checkpoint_callback = ModelCheckpoint(dirpath=ckpt_pth, save_top_k=2, monitor="val_loss_accumulated")
+    checkpoint_callback = ModelCheckpoint(save_top_k=2, monitor="val_loss_accumulated")
 
     trainer = pl.Trainer(
         #fast_dev_run=True,

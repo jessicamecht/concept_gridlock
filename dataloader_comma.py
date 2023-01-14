@@ -82,22 +82,23 @@ class CommaDataset(Dataset):
         #rint = random.randint(0,max(0, len(sequences['image_array'])-(self.max_len+1))) #to randomize sequence
         start = 0#rint if len(sequences['image_array']) > self.max_len else 0
         end = self.max_len#rint+self.max_len if len(sequences['image_array']) > self.max_len else -1
-        images = torch.from_numpy(np.array(sequences['image']).astype(float)).permute(0,3,1,2)[1::5][start:end]#[start:end]
+        imgs = sequences['image'] if len(sequences['image']) <= 240 else sequences['image'][1::5]
+        vEgo = sequences['vEgo'] if len(sequences['vEgo']) <= 240 else sequences['vEgo'][1::5]
+        distances = sequences['dist'] if len(sequences['dist']) <= 240 else sequences['dist'][1::5]
+        angle = sequences['angle'] if len(sequences['angle']) <= 240 else sequences['angle'][1::5]
+
+        images = torch.from_numpy(np.array(imgs).astype(float)).permute(0,3,1,2)[start:end]#[start:end]
         masks = 0#torch.from_numpy(sequences['segm_masks'].astype(int))[start:end].permute(0,3,1,2)
         #images = F.resize(self.normalize(images.type(torch.float)), (224, 224))
         #masks = F.resize(masks, (224, 224))
-        vego = torch.from_numpy(np.array(sequences['vEgo'])[1::5].astype(float))[start:end]
-        angles = torch.from_numpy(sequences['angle'].astype(float))[1::5][start:end]#[start:end]#*(180/np.pi)
+        vego = torch.from_numpy(np.array(vEgo).astype(float))[start:end]
+        angles = torch.from_numpy(np.array(angle).astype(float))[start:end]
         distances = torch.from_numpy(np.array(sequences['dist']))[start:end]
         max_dist = 70
         min_dist = 0
         distances[distances > max_dist] = 0
         #distances = ((distances - min_dist) / (max_dist - min_dist))
         #distances = torch.from_numpy(signal.resample(distances, len(images)))#[start:end]
-        
-
-        #angles = angles - self.min_angle/self.range_angle
-        #images, masks = my_segmentation_transforms(images, masks)
         if self.normalize_values: 
             angles = 2*((angles - self.all_angle_min)/(self.all_angle_max-self.all_angle_min))-1
             distances = 2*((angles - self.all_dist_min)/(self.all_dist_max-self.all_dist_min))-1
