@@ -35,7 +35,7 @@ def get_common_path(hyper_params):
 
     common_path = get('model_type') 
     if get('image_feature') == True:
-        common_path += '_wimg'
+        common_path += '_wclip'
     common_path += {
         "MLP": 			lambda: "_latent_size_{}_dropout_{}".format(
                             get('latent_size'), get('dropout')

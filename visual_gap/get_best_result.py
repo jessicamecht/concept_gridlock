@@ -7,29 +7,29 @@ def get_best(all_logs, model, time_horizon, VAL_METRIC = "RMSE_mean"):
         "copy": "copy.txt",
         "linear": "linear.txt",
 
-        "MLP": "MLP(?!.*wimg.*)(?!.*horizon.*)",
-        'MLP_Horizon': "MLP(?!.*wimg.*).*horizon",
+        "MLP": "MLP(?!.*wclip.*)(?!.*horizon.*)",
+        'MLP_Horizon': "MLP(?!.*wclip.*).*horizon",
         
-        "RNN": "RNN(?!.*wimg.*)(?!.*horizon.*)",
-        "RNN_Horizon": "RNN(?!.*wimg.*).*horizon",
+        "RNN": "RNN(?!.*wclip.*)(?!.*horizon.*)",
+        "RNN_Horizon": "RNN(?!.*wclip.*).*horizon",
         
-        "Transformer": "Transformer(?!.*wimg.*)(?!.*horizon.*)",
-        "Transformer_Horizon": "Transformer(?!.*wimg.*).*horizon",
+        "Transformer": "Transformer(?!.*wclip.*)(?!.*horizon.*)",
+        "Transformer_Horizon": "Transformer(?!.*wclip.*).*horizon",
 
-        "GapFormer": "GapFormer(?!.*wimg.*)(?!.*horizon.*)",
-        "GapFormer_Horizon": "GapFormer(?!.*wimg.*).*horizon",
+        "GapFormer": "GapFormer(?!.*wclip.*)(?!.*horizon.*)",
+        "GapFormer_Horizon": "GapFormer(?!.*wclip.*).*horizon",
 
-       	"MLP_wimg": "MLP.*wimg(?!.*horizon.*)",
-        'MLP_wimg_Horizon': "MLP.*wimg.*horizon",
+       	"MLP_wclip": "MLP.*wclip(?!.*horizon.*)",
+        'MLP_wclip_Horizon': "MLP.*wclip.*horizon",
         
-        "RNN_wimg": "RNN.*wimg(?!.*horizon.*)",
-        "RNN_wimg_Horizon": "RNN.*wimg.*horizon",
+        "RNN_wclip": "RNN.*wclip(?!.*horizon.*)",
+        "RNN_wclip_Horizon": "RNN.*wclip.*horizon",
         
-        "Transformer_wimg": "Transformer.*wimg(?!.*horizon.*)",
-        "Transformer_wimg_Horizon": "Transformer.*wimg.*horizon",
+        "Transformer_wclip": "Transformer.*wclip(?!.*horizon.*)",
+        "Transformer_wclip_Horizon": "Transformer.*wclip.*horizon",
 
-        "GapFormer_wimg": "GapFormer.*wimg(?!.*horizon.*)",
-        "GapFormer_wimg_Horizon": "GapFormer.*wimg.*horizon",
+        "GapFormer_wclip": "GapFormer.*wclip(?!.*horizon.*)",
+        "GapFormer_wclip_Horizon": "GapFormer.*wclip.*horizon",
 
     }[model] + ".*"
     
@@ -101,14 +101,14 @@ if __name__ == "__main__":
 			'Transformer_Horizon',
 			'GapFormer',
 			'GapFormer_Horizon',
-			'MLP_wimg',
-        	'MLP_wimg_Horizon',
-        	"RNN_wimg",
-        	"RNN_wimg_Horizon",
-            "Transformer_wimg",
-        	"Transformer_wimg_Horizon",
-        	"GapFormer_wimg",
-        	"GapFormer_wimg_Horizon",
+			'MLP_wclip',
+        	'MLP_wclip_Horizon',
+        	"RNN_wclip",
+        	"RNN_wclip_Horizon",
+            "Transformer_wclip",
+        	"Transformer_wclip_Horizon",
+        	"GapFormer_wclip",
+        	"GapFormer_wclip_Horizon",
 
 		]:
 			results, best_log = get_best(all_logs, kind, int(10.0 * sampling_freq)) # 10 seconds in the future

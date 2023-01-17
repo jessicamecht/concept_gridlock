@@ -14,17 +14,17 @@ from utils import get_common_path
 common_hyper_params = {
     ## Some model hyper-params
     'weight_decay':         list(map(float, [ 1e-6 ])),
-	'horizon': 				[ False, True ],
+	'horizon': 				[ False, True],
 	'staggered_training': 	[ False ],
 	'seq_step_size': 		[ 100 ], # NOTE: will not be used if staggered_training == False
-    'image_feature':        [ False, True],
+    'image_feature':        [ True],
     ## Transformer / GapFormer
-    'num_heads':            [ 1],
-    'num_blocks':           [ 1],
+    'num_heads':            [ 1, 2, 4],
+    'num_blocks':           [ 1, 2],
 	'linear_attention': 	True,
 
     ## Future search
-    'horizon_K':              [ 5, 25, 50 ],
+    'horizon_K':              [ 50 ],
     'horizon_decay':         [
         None,
         # 'linear',
@@ -76,7 +76,7 @@ transformer_models = {
 
 gapformer_models = {
     'model_type':           [ 'GapFormer' ],
-    'batch_size':           [ 2, 4 ], 
+    'batch_size':           [ 2, 4, 8 ], 
 	'lr':                   [ 0.0005 ],
 	'dropout':              [ 0.0, 0.2 ],
     'gapformer_fusion':     [ 
@@ -116,7 +116,7 @@ For e.g. for a machine with 2 GPUs, and if gpu_ids = [ -1, -1, 0, 0, 1, 1 ]
 - 2 on the 2nd GPU (GPU_ID = 1) (indicated by 1)
 Note that if provided GPU_ID > #GPUs available; the configuration will be trained on the CPU
 '''
-gpu_ids = [ 1, 1, 2, 3, 3 ]
+gpu_ids = [ 0, 0, 1, 1, 2, 2, 3, 3 ]
 
 ################## CONFIGURATION INPUT ENDS ###################
 
@@ -176,7 +176,6 @@ print("Total processes after removing already finished jobs:", len(all_tasks))
 temp = defaultdict(int)
 for t in all_tasks: temp[t['model_type']] += 1
 print(dict(temp))
-# sys.exit()
 # exit()
 
 # STEP-2: Assign individual GPU processes
