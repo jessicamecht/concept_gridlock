@@ -18,7 +18,6 @@ def save_preds(logits, target, save_name):
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser()
     parser.add_argument('-task', default="angle", type=str)  
     parser.add_argument('-gpu_num', default=0, type=int) 

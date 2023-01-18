@@ -16,14 +16,14 @@ class LSTMModel(nn.Module):
                  inp_size, 
                  hidden_size, 
                  num_layers=3):
-
-        self.lstm = nn.LSTM(inp_size, hidden_size, num_layers)
+        super(LSTMModel, self).__init__()
+        self.lstm = nn.LSTM(inp_size, hidden_size, num_layers, batch_first=True)
     def forward(self, x):
         return self.lstm(x)
 
 
 def pad_to_window_size_local(input_ids: torch.Tensor, attention_mask: torch.Tensor, position_ids: torch.Tensor,
-                             one_sided_window_size: int, pad_token_id: int):
+                            pad_token_id: int):
     '''A helper function to pad tokens and mask to work with the sliding_chunks implementation of Longformer self-attention.
     Based on _pad_to_window_size from https://github.com/huggingface/transformers:
     https://github.com/huggingface/transformers/blob/71bdc076dd4ba2f3264283d4bc8617755206dccd/src/transformers/models/longformer/modeling_longformer.py#L1516
@@ -35,9 +35,7 @@ def pad_to_window_size_local(input_ids: torch.Tensor, attention_mask: torch.Tens
     Returns
         (input_ids, attention_mask) padded to length divisible by 2 * one_sided_window_size
     '''
-    w = 2 * one_sided_window_size
-    seqlen = input_ids.size(1)
-    padding_len = (w - seqlen % w) % w
+    padding_len = 240
     input_ids = F.pad(input_ids.permute(0, 2, 1), (0, padding_len), value=pad_token_id).permute(0, 2, 1)
     attention_mask = F.pad(attention_mask, (0, padding_len), value=False)  # no attention on the padding tokens
     position_ids = F.pad(position_ids, (1, padding_len), value=False)  # no attention on the padding tokens
@@ -105,7 +103,6 @@ class SeqLSTM(nn.Module):
         x = x.reshape(B, F, -1)
         x = torch.cat((x, angle.unsqueeze(-1)), dim=-1)
         x = torch.cat((x, distance.unsqueeze(-1)), dim=-1)
-
         # temporal encoder (Longformer)
         B, D, E = x.shape
         attention_mask = torch.ones((B, D), dtype=torch.long, device=x.device)
@@ -114,14 +111,6 @@ class SeqLSTM(nn.Module):
         cls_atten = torch.ones(1).expand(B, -1).to(x.device)
         attention_mask = torch.cat((attention_mask, cls_atten), dim=1)
         attention_mask[:, 0] = 2
-        x, attention_mask, position_ids = pad_to_window_size_local(
-            x,
-            attention_mask,
-            x,#position_ids, TODO add position_ids
-            self.temporal_encoder.config.attention_window[0],
-            self.temporal_encoder.config.pad_token_id)
-        token_type_ids = torch.zeros(x.size()[:-1], dtype=torch.long, device=x.device)
-        token_type_ids[:, 0] = 1
 
         # TODO add position_ids
         '''position_ids = position_ids.long()
@@ -130,15 +119,11 @@ class SeqLSTM(nn.Module):
         position_ids = position_ids % (max_position_embeddings - 2)
         position_ids[:, 0] = max_position_embeddings - 2
         position_ids[mask == 0] = max_position_embeddings - 1'''
-
-        x = self.temporal_encoder(token_type_ids)
+        x = self.temporal_encoder(x)
         # MLP head
-        x = x
-        b, s, e = x.shape
-        x = x#.reshape(b*s, e)
+        x = x[0]
         if self.multitask:
             x2 = self.mlp_head_2(x)
-            #x = x.reshape(b*s, e)
         x = self.mlp_head(x)
         if self.multitask != "multitask":
             return x[:,1:F+1,:]
