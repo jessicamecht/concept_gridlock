@@ -1,5 +1,5 @@
 import pytorch_lightning as pl
-from model import *
+from model_simple import *
 from module import * 
 from pytorch_lightning.callbacks.progress import TQDMProgressBar
 import torch 
@@ -26,7 +26,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     multitask = args.task
     early_stop_callback = EarlyStopping(monitor="val_loss_accumulated", min_delta=0.05, patience=5, verbose=False, mode="max")
-    model = VTN(multitask=multitask)
+    model = SeqLSTM(multitask=multitask)
     module = LaneModule(model, multitask=multitask, dataset = args.dataset, bs=2)
     ckpt_pth = f"./checkpoints_{args.dataset}_{args.task}"
     checkpoint_callback = ModelCheckpoint(save_top_k=2, monitor="val_loss_accumulated")
