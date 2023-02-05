@@ -36,6 +36,7 @@ class VTNLongformerModel(LongformerModel):
         self.config.pad_token_id = pad_token_id
         self.config.max_position_embeddings = max_position_embeddings
         self.config.hidden_size = embed_dim
+        #print('config', self.config)
         super(VTNLongformerModel, self).__init__(self.config, add_pooling_layer=False)
         self.embeddings.word_embeddings = None  # to avoid distributed error of unused parameters
 
@@ -75,24 +76,20 @@ class VTN(nn.Module):
         self._construct_network(multitask, backbone)
 
     def _construct_network(self, multitask, backbone):
-        #full_resnet = models.resnet18(pretrained=True)
-        #dfs_freeze(full_resnet)
-        #resnet = torch.nn.Sequential(*(list(full_resnet.children())[:-1] + [nn.Linear(2048, 768)]))
+
         if backbone == "vit":
             self.backbone = vit_base_patch16_224(pretrained=True,num_classes=0,drop_path_rate=0.0,drop_rate=0.0)
             embed_dim = self.backbone.embed_dim
             num_attention_heads=12
-            mlp_size = 768+2
+            mlp_size = 768+3
         elif backbone== "resnet":
             resnet = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
             self.backbone = torch.nn.Sequential(*list(resnet.children())[:-1])
-            embed_dim = 512+2
-            num_attention_heads=2
-            mlp_size = 512+2
+            embed_dim = 512+3
+            num_attention_heads=5
+            mlp_size = 512+3
 
-        dfs_freeze(self.backbone)
         self.multitask = multitask
-        
         self.cls_token = nn.Parameter(torch.randn(1, 1, embed_dim))
         #self.pe = PositionalEncoding(embed_dim) #TODO add positional encoding
 
@@ -103,11 +100,12 @@ class VTN(nn.Module):
             num_hidden_layers=3,
             attention_mode='sliding_chunks',
             pad_token_id=-1,
-            attention_window=[18, 18, 18],
+            attention_window=[8, 8, 8],
             intermediate_size=3072,
-            attention_probs_dropout_prob=0.1,
-            hidden_dropout_prob=0.4)
+            attention_probs_dropout_prob=0.3,
+            hidden_dropout_prob=0.3)
         num_classes = 1
+        #print('ggg', self.temporal_encoder.config.attention_window[0])
         self.mlp_head = nn.Sequential(
             nn.LayerNorm(mlp_size),
             nn.Linear(mlp_size, mlp_size),
@@ -124,11 +122,16 @@ class VTN(nn.Module):
                 nn.Linear(mlp_size, num_classes)
             )
 
-    def forward(self, x, angle, distance):
+    def forward(self, x, angle, distance, vego):
         angle = torch.roll(angle, shifts=1, dims=1)
         angle[:,0] = angle[:,1]
         distance = torch.roll(distance, shifts=1, dims=1)
         distance[:,0] = distance[:,1]
+        vego = torch.roll(vego, shifts=1, dims=1)
+        vego[:,0] = vego[:,1]
+        #print('ang', angle[0, 0:50])
+        #print('dist', distance[0, 0:50])
+        #print('vego', vego[0, 0:50])
         # spatial backbone
         B, F, C, H, W = x.shape
         x = x.reshape(B * F, C, H, W)
@@ -136,23 +139,32 @@ class VTN(nn.Module):
         x = x.reshape(B, F, -1)
         x = torch.cat((x, angle.unsqueeze(-1)), dim=-1)
         x = torch.cat((x, distance.unsqueeze(-1)), dim=-1)
+        x = torch.cat((x, vego.unsqueeze(-1)), dim=-1)
+        #print('x', x.shape, x[0, 0:50])
 
         # temporal encoder (Longformer)
         B, D, E = x.shape
         attention_mask = torch.ones((B, D), dtype=torch.long, device=x.device)
         cls_tokens = self.cls_token.expand(B, -1, -1)  # stole cls_tokens impl from Phil Wang, thanks
         x = torch.cat((cls_tokens, x), dim=1)
+        #print('cls', cls_tokens.shape, cls_tokens)
         cls_atten = torch.ones(1).expand(B, -1).to(x.device)
         attention_mask = torch.cat((attention_mask, cls_atten), dim=1)
         attention_mask[:, 0] = 2
+        #print('att', attention_mask[0, 0:50])
         x, attention_mask, position_ids = pad_to_window_size_local(
             x,
             attention_mask,
             x,#position_ids, TODO add position_ids
             self.temporal_encoder.config.attention_window[0],
             self.temporal_encoder.config.pad_token_id)
+        #print('x1', x[0, 0:50])
+        #if self.multitask == "distance":
+        #attention_mask = attention_mask & distance != 0.0
+        #print('att1', attention_mask[0, 0:50])
         token_type_ids = torch.zeros(x.size()[:-1], dtype=torch.long, device=x.device)
         token_type_ids[:, 0] = 1
+        #print('tok_ty', token_type_ids[0, 0:50])
 
         # TODO add position_ids
         '''position_ids = position_ids.long()
@@ -170,8 +182,10 @@ class VTN(nn.Module):
                                   output_attentions=None,
                                   output_hidden_states=None,
                                   return_dict=True)
+        
         # MLP head
         x = x["last_hidden_state"]
+        #print('x2',x[0])
         b, s, e = x.shape
         x = x#.reshape(b*s, e)
         if self.multitask:

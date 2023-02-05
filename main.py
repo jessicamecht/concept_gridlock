@@ -23,27 +23,31 @@ if __name__ == "__main__":
     parser.add_argument('-task', default="angle", type=str)  
     parser.add_argument('-gpu_num', default=0, type=int) 
     parser.add_argument('-dataset', default="comma", type=str)  
+    parser.add_argument('-backbone', default="resnet", type=str) 
+    parser.add_argument('-bs', default=3, type=int) 
+    parser.add_argument('-dev_run', default=False, type=bool) 
     args = parser.parse_args()
     multitask = args.task
     early_stop_callback = EarlyStopping(monitor="val_loss_accumulated", min_delta=0.05, patience=5, verbose=False, mode="max")
-    model = VTN(multitask=multitask)
-    module = LaneModule(model, multitask=multitask, dataset = args.dataset, bs=2)
+    model = VTN(multitask=multitask, backbone=args.backbone)
+    module = LaneModule(model, multitask=multitask, dataset = args.dataset, bs=args.bs)
     ckpt_pth = f"./checkpoints_{args.dataset}_{args.task}"
     checkpoint_callback = ModelCheckpoint(save_top_k=2, monitor="val_loss_accumulated")
     logger = TensorBoardLogger(save_dir=ckpt_pth)
 
 
     trainer = pl.Trainer(
-        #fast_dev_run=True,
+        fast_dev_run=args.dev_run,
         accelerator="gpu",
         devices=[args.gpu_num] if torch.cuda.is_available() else None, 
         logger=logger,
-        max_epochs=200,
+        #resume_from_checkpoint ='/home/jessica/personalized_driving_toyot a/checkpoints_comma_distance/lightning_logs/version_44/checkpoints/epoch=116-step=6265.ckpt',
+        max_epochs=100,
         default_root_dir=ckpt_pth ,
         callbacks=[TQDMProgressBar(refresh_rate=5), checkpoint_callback],#, EarlyStopping(monitor="train_loss", mode="min")],
         )
-    trainer.fit(module)
-    ckpt_path='best'#/home/jessica/personalized_driving_toyota/checkpoints_comma_distance/lightning_logs/version_17/checkpoints/epoch=53-step=810.ckpt'#"best"
+    #trainer.fit(module)
+    ckpt_path='/home/jessica/personalized_driving_toyota/checkpoints_comma_angle/lightning_logs/version_17/checkpoints/epoch=21-step=1694.ckpt'#'best'#/home/jessica/personalized_driving_toyota/checkpoints_comma_distance/lightning_logs/version_17/checkpoints/epoch=53-step=810.ckpt'#"best"
 
     preds = trainer.test(module, ckpt_path=ckpt_path)
     if args.task == "angle":
@@ -59,6 +63,7 @@ if __name__ == "__main__":
     elif args.task == "multitask":
         preds = trainer.predict(module, ckpt_path=ckpt_path)
         for pred in preds:
-            preds_angle, preds_dist, angle, dist = pred[0], pred[1], pred[2], pred[3]
+            preds, angle, dist = pred[0], pred[1], pred[2]
+            preds_angle, preds_dist = preds[0], preds[1]
             save_preds(preds_angle, angle, "angle_multi")
             save_preds(preds_dist, dist, "dist_multi")
