@@ -1,4 +1,4 @@
-# personalized_driving_toyota
+# Personalized Driving Project
 
 To execute the training (or testing respectively -- make sure to set the testing checkpoint path accordingly), run 
 
