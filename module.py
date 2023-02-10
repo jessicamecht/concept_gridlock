@@ -12,7 +12,7 @@ import numpy as np
 
 
 class LaneModule(pl.LightningModule):
-
+    '''Pytorch lightning module to train angle, distance or multitask procedures'''
     def __init__(self, model, bs, multitask="angle", dataset="comma"):
         super(LaneModule, self).__init__()
         self.model = model
@@ -28,14 +28,6 @@ class LaneModule(pl.LightningModule):
     def forward(self, x, angle, distance, vego):
         return self.model(x, angle, distance, vego)
 
-    def save_preds(self, logits, target, save_name):
-        b, s = target.shape
-        df = pd.DataFrame()
-        df['logits'] = logits.squeeze().reshape(b*s).tolist()
-        df['target'] = target.squeeze().reshape(b*s).tolist()
-
-        #df.to_csv(f'{self.log_dir}/{save_name}.csv', mode='a', index=False, header=False)
-
     def mse_loss(self, input, target, mask, reduction="mean", task='distance'):
         out = (input[~mask]-target[~mask])**2
         return out.mean() if reduction == "mean" else out 
@@ -44,7 +36,6 @@ class LaneModule(pl.LightningModule):
         if self.multitask == "multitask":
             logits_angle, logits_dist = logits
             mask = distance.squeeze() == 0.0
-            #print(logits_angle.shape, angle.shape, logits_dist.shape, distance.shape)
             loss_angle = torch.sqrt(self.loss(logits_angle.squeeze(), angle.squeeze(), mask, task="angle"))
             loss_distance = torch.sqrt(self.loss(logits_dist.squeeze(), distance.squeeze(), mask, task="distance"))
             if loss_angle.isnan() or loss_distance.isnan():
@@ -52,19 +43,14 @@ class LaneModule(pl.LightningModule):
             loss = loss_angle, loss_distance
             self.log_dict({"train_loss_angle": loss_angle}, on_epoch=True, batch_size=self.bs)
             self.log_dict({"train_loss_distance": loss_distance}, on_epoch=True, batch_size=self.bs)
-            self.save_preds(logits_angle, angle, save_name + "_angle")
-            self.save_preds(logits_dist, distance, save_name + "_distance")
             return loss_angle, loss_distance
         else:
             mask = distance.squeeze() == 0.0
-            #print(logits.shape, angle.shape)
             loss = torch.sqrt(self.loss(logits.squeeze(), angle.squeeze(), mask, task=self.multitask))
-            self.save_preds(logits, angle, save_name) 
             return loss
 
     def training_step(self, batch, batch_idx):
-        meta, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
-        #print('im', image_array.shape)
+        _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array, angle, distance, vego)
         loss = self.calculate_loss(logits, angle, distance, "train")
         if self.multitask == "multitask":
@@ -76,16 +62,13 @@ class LaneModule(pl.LightningModule):
         return loss
 
     def predict_step(self, batch, batch_idx):
-        meta, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
+        _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array, angle, distance, vego)
         return logits, angle, distance
 
     def validation_step(self, batch, batch_idx):
-        meta, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
+        _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array, angle, distance, vego)
-        #print('logits', logits[0, 0:50].squeeze())
-        #print('angle', angle[0, 0:50])
-        #print('dist', distance[0, 0:50])
         loss = self.calculate_loss(logits, angle, distance, "val")
         
         if self.multitask == "multitask":
@@ -98,7 +81,7 @@ class LaneModule(pl.LightningModule):
         return loss
 
     def test_step(self, batch, batch_idx):
-        meta, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
+        _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array, angle, distance, vego)
         loss = self.calculate_loss(logits, angle, distance, "test")
 
@@ -129,7 +112,6 @@ class LaneModule(pl.LightningModule):
         return self.get_dataloader(dataset_type="val")
 
     def test_dataloader(self):
-        dl = self.get_dataloader(dataset_type="test")
         return self.get_dataloader(dataset_type="test")
 
     def predict_dataloader(self):
@@ -144,6 +126,8 @@ class LaneModule(pl.LightningModule):
         return DataLoader(ds, batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
         
 def pad_collate(batch):
+    '''just in case if there were different sequence lengths, 
+    but currently all lengths should be the same when batching'''
     meta, img, segm, angle, dist = zip(*batch)
     m_lens = [len(x) for x in meta]
     i_lens = [len(y) for y in img]
