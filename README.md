@@ -1,7 +1,10 @@
 # personalized_driving_toyota
 
-To execute the training (or testing respectively -- make sure to set the testing checkpoint path accordingly), run `python main.py -task angle -train True -gpu_num 0 -dataset comma -backbone resnet -bs 3 -dev_run False` 
-It is based on `pytorch lightning`. Most of the training and testing logic is defined in **module.py** as a pytorch lightning module. 
+To execute the training (or testing respectively -- make sure to set the testing checkpoint path accordingly), run 
+
+`python main.py -task angle -train True -gpu_num 0 -dataset comma -backbone resnet -bs 3 -dev_run False` 
+
+It is based on pytorch lightning. Most of the training and testing logic is defined in **module.py** as a pytorch lightning module. 
 The model logic for the Visual Transformer Network is defined in **model.py**.
 
 The ONCE dataloader can be found in **dataloader.py** (deprecated).
