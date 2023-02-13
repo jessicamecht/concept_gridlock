@@ -112,8 +112,7 @@ class VTN(nn.Module):
             nn.Dropout(0.5),
             nn.Linear(mlp_size, num_classes)
         )
-        if self.multitask: # if multitask setup, we nees a separate MLP for second task 
-            self.mlp_head_2 = nn.Sequential(
+        self.mlp_head_2 = nn.Sequential(
                 nn.LayerNorm(mlp_size),
                 nn.Linear(mlp_size, mlp_size),
                 nn.GELU(),
@@ -179,7 +178,6 @@ class VTN(nn.Module):
         
         if self.multitask:
             x2 = self.mlp_head_2(x)
-        
         x = self.mlp_head(x)
         if self.multitask != "multitask":
             return x[:,1:F+1,:] # we want to exclude the starting token since we don't have any previous knowledge about it 

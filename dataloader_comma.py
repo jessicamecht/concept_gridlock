@@ -62,7 +62,7 @@ class CommaDataset(Dataset):
             self.keys4 = []
 
         if dataset_type == "val":
-            good_keys = [1, 6, 9, 10, 11, 12, 14, 15]#[0, 1, 4, 6, 7, 9, 10, 11, 12, 14, 15]
+            good_keys = [1, 6, 9, 10, 11, 12, 14, 15]
             self.keys = np.array(self.keys)[good_keys]
             self.h5_file2 = h5py.File(data_path2, "r")
             self.keys2 = list(self.h5_file2.keys())
@@ -70,7 +70,7 @@ class CommaDataset(Dataset):
             self.keys3 = list(self.h5_file3.keys())
             
         if dataset_type == "test":
-            good_keys = [0, 6, 8, 9, 10, 13]#[0, 1, 4, 6, 8, 9, 10, 13, 15]
+            good_keys = [0, 6, 8, 9, 10, 13]
             self.keys = np.array(self.keys)[good_keys]
             self.h5_file2 = h5py.File(data_path2, "r")
             self.keys2 = list(self.h5_file2.keys())[0:3] + list(self.h5_file2.keys())[5:]
