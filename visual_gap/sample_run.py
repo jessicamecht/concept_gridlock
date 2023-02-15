@@ -43,7 +43,7 @@ once_hyper_params = {
     'dataset': 'once',
 
     'latent_size':          [256],
-    'epochs':               5,
+    'epochs':               50,
     
     'max_seq_len':          [ 500],
     'transformer_seq_len':  [ 50],
@@ -102,7 +102,7 @@ final_search = [
     [ 
         baselines,
         non_sequential_models, 
-        rnn_models, 
+        # rnn_models, 
         transformer_models,
         gapformer_models,
     ]
@@ -117,7 +117,7 @@ For e.g. for a machine with 2 GPUs, and if gpu_ids = [ -1, -1, 0, 0, 1, 1 ]
 - 2 on the 2nd GPU (GPU_ID = 1) (indicated by 1)
 Note that if provided GPU_ID > #GPUs available; the configuration will be trained on the CPU
 '''
-gpu_ids = [ 1, 2, 3 ]
+gpu_ids = [ 1, 2, 2, 3 ]
 
 ################## CONFIGURATION INPUT ENDS ###################
 

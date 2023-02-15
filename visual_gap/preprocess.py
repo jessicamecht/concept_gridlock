@@ -432,8 +432,8 @@ class rating_data_once(rating_data_base):
             user_history = list(map(lambda x: x[:-1], user_history))
             self.data.append(user_history)
 
-        # print('sample data', self.data[0][:2])
-        # sys.exit()
+        # print('sample data', self.data[0][:2], len(self.data), len(self.data[0]))
+        # exit()
 
 if __name__ == "__main__":
     print("Preprocessing {}...".format(hyper_params['dataset']))

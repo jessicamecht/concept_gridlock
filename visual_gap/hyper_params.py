@@ -8,12 +8,13 @@ hyper_params = {
     # Baselines: 		[ 'copy', 'linear' ] 
 	# Non-sequential: 	[ 'MLP' ] 
 	# Sequential: 		[ 'RNN', 'Transformer', 'GapFormer' ]
-    'model_type':           'RNN',
+    'model_type':           'GapFormer',
 	'horizon': 				True,  # NOTE: not applicable for baselines
 	'staggered_training': 	False, # NOTE: not included in the paper, check slides for staggered training
     'image_feature':        True,
+    # 'image_only':       True,
 
-	## Horizon-conifgurations (only if horizon == True)
+	## Horizon-configurations (only if horizon == True)
     'horizon_K':              10,
     'horizon_decay':         'None', # [ 'None', 'linear', 'inverse' ]
 
@@ -43,7 +44,7 @@ hyper_params = {
     ## General stuff
 	'eval_K':               100, # Timesteps: if sampling freq is 10Hz === 100/10 seconds
     'batch_size':           2, # ~64-128 for MLP and ~2-4 for sequential models
-    'epochs':               20,
+    'epochs':               10,
     'validate_every':       1,
     'early_stop':           50, # Stop if perf. doesn't increase for `early_stop` X `validate_every` epochs
 }

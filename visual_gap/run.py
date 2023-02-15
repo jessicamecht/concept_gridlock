@@ -13,8 +13,8 @@ from utils import get_common_path
 
 common_hyper_params = {
     ## Some model hyper-params
-    'weight_decay':         list(map(float, [ 1e-6 ])),
-	'horizon': 				[ False, True],
+    'weight_decay':         list(map(float, [ 1e-5, 1e-6 ])),
+	'horizon': 				[ False ],
 	'staggered_training': 	[ False ],
 	'seq_step_size': 		[ 100 ], # NOTE: will not be used if staggered_training == False
     'image_feature':        [ True],
@@ -41,11 +41,11 @@ common_hyper_params = {
 once_hyper_params = {
     'dataset': 'once',
 
-    'latent_size':          [ 128, 512 ],
-    'epochs':               300,
+    'latent_size':          [ 128, 256, 512 ],
+    'epochs':               150,
     
-    'max_seq_len':          [ 500, 1_000],
-    'transformer_seq_len':  [ 50, 200, 500 ],
+    'max_seq_len':          [ 500, 1000],
+    'transformer_seq_len':  [ 200, 500],
 }
 
 baselines = {
@@ -69,16 +69,16 @@ rnn_models = {
 
 transformer_models = {
     'model_type':           [ 'Transformer' ],
-    'batch_size':           [ 2 ], 
-	'lr':                   [ 0.0005 ],
-	'dropout':              [ 0.0, 0.2 ],
+    'batch_size':           [ 2, 4 ], 
+	'lr':                   [ 0.0001, 0.0005],
+	'dropout':              [ 0.0, ],
 }
 
 gapformer_models = {
     'model_type':           [ 'GapFormer' ],
-    'batch_size':           [ 2, 4, 8 ], 
+    'batch_size':           [ 2 ], 
 	'lr':                   [ 0.0005 ],
-	'dropout':              [ 0.0, 0.2 ],
+	'dropout':              [ 0.0, 0.5 ],
     'gapformer_fusion':     [ 
         'concat', 
         'add', 
@@ -99,11 +99,11 @@ final_search = [
 
 	# Methods to train
     [ 
-        baselines,
-        non_sequential_models, 
-        # rnn_models, 
-        transformer_models,
-        gapformer_models,
+        # baselines,
+        # non_sequential_models, 
+        rnn_models, 
+        # transformer_models,
+        # gapformer_models,
     ]
 ]
 
@@ -116,8 +116,9 @@ For e.g. for a machine with 2 GPUs, and if gpu_ids = [ -1, -1, 0, 0, 1, 1 ]
 - 2 on the 2nd GPU (GPU_ID = 1) (indicated by 1)
 Note that if provided GPU_ID > #GPUs available; the configuration will be trained on the CPU
 '''
-gpu_ids = [ 0, 0, 1, 1, 2, 2, 3, 3 ]
+gpu_ids = [ 0, 1 ]
 
+# GPU id mappings on deepz: 3->2, 1->3, 2->1, 0->0
 ################## CONFIGURATION INPUT ENDS ###################
 
 # STEP-1: Count processes 

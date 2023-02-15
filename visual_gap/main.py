@@ -26,11 +26,11 @@ def train(model, criterion, optimizer, reader, hyper_params):
         optimizer.zero_grad()
     
         # Forward pass
-        # print (type(data))
-        # print (y.size())
+        # print (type(data), type(data[0]), data[0].size())
+        # print ('size of y', y.size())
         output = model(*data)
         # print (output.size())
-        # sys.exit()
+        # exit()
         # Compute per-interaction loss
         loss = criterion(output, y, return_mean = False)
 
@@ -177,6 +177,8 @@ def main(hyper_params, gpu_id = None, just_eval = False):
     # hyper_params['log_file'] = "../results/{}/logs/test.txt".format(hyper_params['dataset'])
     hyper_params['model_path'] = "../results/{}/models/{}.pt".format(hyper_params['dataset'], get_common_path(hyper_params))
 
+    
+    
     import torch    
     torch.cuda.empty_cache() ; gc.collect()
     main_pytorch(hyper_params, just_eval)
