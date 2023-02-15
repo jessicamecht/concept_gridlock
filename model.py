@@ -6,6 +6,7 @@ from timm.models.vision_transformer import vit_base_patch16_224
 from torchvision.models import resnet18, ResNet18_Weights
 
 def dfs_freeze(model):
+    '''freeze model parameters (e.g. for backbone)'''
     for name, child in model.named_children():
         for param in child.parameters():
             param.requires_grad = False
@@ -64,7 +65,7 @@ def pad_to_window_size_local(input_ids: torch.Tensor, attention_mask: torch.Tens
 
 class VTN(nn.Module):
     """
-    VTN model builder. It uses ViT-Base as the backbone.
+    VTN model builder. It uses ViT-Base or Resnet as the backbone.
     Daniel Neimark, Omri Bar, Maya Zohar and Dotan Asselmann.
     "Video Transformer Network."
     https://arxiv.org/abs/2102.00719
@@ -75,26 +76,22 @@ class VTN(nn.Module):
         self._construct_network(multitask, backbone)
 
     def _construct_network(self, multitask, backbone):
-        #full_resnet = models.resnet18(pretrained=True)
-        #dfs_freeze(full_resnet)
-        #resnet = torch.nn.Sequential(*(list(full_resnet.children())[:-1] + [nn.Linear(2048, 768)]))
+
         if backbone == "vit":
             self.backbone = vit_base_patch16_224(pretrained=True,num_classes=0,drop_path_rate=0.0,drop_rate=0.0)
             embed_dim = self.backbone.embed_dim
             num_attention_heads=12
-            mlp_size = 768
+            mlp_size = 768+3 #image feature size + previous sensor feature size 
         elif backbone== "resnet":
             resnet = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
             self.backbone = torch.nn.Sequential(*list(resnet.children())[:-1])
-            embed_dim = 512
-            num_attention_heads=8
-            mlp_size = 512
+            embed_dim = 512+3 #image feature size + previous sensor feature size 
+            num_attention_heads=5
+            mlp_size = 512+3 #image feature size + previous sensor feature size 
 
-        dfs_freeze(self.backbone)
         self.multitask = multitask
-        
         self.cls_token = nn.Parameter(torch.randn(1, 1, embed_dim))
-        #self.pe = PositionalEncoding(embed_dim) #TODO add positional encoding
+        #self.pe = PositionalEncoding(embed_dim) #Did not add positional encoding because VTN paper found better results without
 
         self.temporal_encoder = VTNLongformerModel(
             embed_dim=embed_dim,
@@ -103,10 +100,10 @@ class VTN(nn.Module):
             num_hidden_layers=3,
             attention_mode='sliding_chunks',
             pad_token_id=-1,
-            attention_window=[18, 18, 18],
+            attention_window=[8, 8, 8],
             intermediate_size=3072,
-            attention_probs_dropout_prob=0.1,
-            hidden_dropout_prob=0.4)
+            attention_probs_dropout_prob=0.3,
+            hidden_dropout_prob=0.3)
         num_classes = 1
         self.mlp_head = nn.Sequential(
             nn.LayerNorm(mlp_size),
@@ -115,8 +112,7 @@ class VTN(nn.Module):
             nn.Dropout(0.5),
             nn.Linear(mlp_size, num_classes)
         )
-        if self.multitask:
-            self.mlp_head_2 = nn.Sequential(
+        self.mlp_head_2 = nn.Sequential(
                 nn.LayerNorm(mlp_size),
                 nn.Linear(mlp_size, mlp_size),
                 nn.GELU(),
@@ -124,7 +120,15 @@ class VTN(nn.Module):
                 nn.Linear(mlp_size, num_classes)
             )
 
-    def forward(self, x, bboxes=None):
+    def forward(self, x, angle, distance, vego):
+        # we need to roll the previous sensor features, so that we do not include the step that we want to predict
+        # we also substitude empty 0th entry then with 1st entry
+        angle = torch.roll(angle, shifts=1, dims=1)
+        angle[:,0] = angle[:,1]
+        distance = torch.roll(distance, shifts=1, dims=1)
+        distance[:,0] = distance[:,1]
+        vego = torch.roll(vego, shifts=1, dims=1)
+        vego[:,0] = vego[:,1]
 
         # spatial backbone
         B, F, C, H, W = x.shape
@@ -132,30 +136,32 @@ class VTN(nn.Module):
         x = self.backbone(x)
         x = x.reshape(B, F, -1)
 
+        #concatenate the sensor features 
+        x = torch.cat((x, angle.unsqueeze(-1)), dim=-1)
+        x = torch.cat((x, distance.unsqueeze(-1)), dim=-1)
+        x = torch.cat((x, vego.unsqueeze(-1)), dim=-1)
+
         # temporal encoder (Longformer)
         B, D, E = x.shape
         attention_mask = torch.ones((B, D), dtype=torch.long, device=x.device)
         cls_tokens = self.cls_token.expand(B, -1, -1)  # stole cls_tokens impl from Phil Wang, thanks
         x = torch.cat((cls_tokens, x), dim=1)
+
         cls_atten = torch.ones(1).expand(B, -1).to(x.device)
         attention_mask = torch.cat((attention_mask, cls_atten), dim=1)
-        attention_mask[:, 0] = 2
-        x, attention_mask, position_ids = pad_to_window_size_local(
+        attention_mask[:, 0] = 2 # initialize the start with a special number
+
+        
+
+        x, attention_mask, _ = pad_to_window_size_local(
             x,
             attention_mask,
-            x,#position_ids, TODO add position_ids
+            x,#position_ids, in case we wanted them
             self.temporal_encoder.config.attention_window[0],
             self.temporal_encoder.config.pad_token_id)
+
         token_type_ids = torch.zeros(x.size()[:-1], dtype=torch.long, device=x.device)
         token_type_ids[:, 0] = 1
-
-        # TODO add position_ids
-        '''position_ids = position_ids.long()
-        mask = attention_mask.ne(0).int()
-        max_position_embeddings = self.temporal_encoder.config.max_position_embeddings
-        position_ids = position_ids % (max_position_embeddings - 2)
-        position_ids[:, 0] = max_position_embeddings - 2
-        position_ids[mask == 0] = max_position_embeddings - 1'''
 
         x = self.temporal_encoder(input_ids=None,
                                   attention_mask=attention_mask,
@@ -165,15 +171,15 @@ class VTN(nn.Module):
                                   output_attentions=None,
                                   output_hidden_states=None,
                                   return_dict=True)
+        
         # MLP head
         x = x["last_hidden_state"]
-        b, s, e = x.shape
-        x = x.reshape(b*s, e)
+
+        
         if self.multitask:
             x2 = self.mlp_head_2(x)
-            #x = x.reshape(b*s, e)
         x = self.mlp_head(x)
         if self.multitask != "multitask":
-            return x[1:F+1]
+            return x[:,1:F+1,:] # we want to exclude the starting token since we don't have any previous knowledge about it 
         else:
-            return x[1:F+1], x2[1:F+1]
+            return x[:,1:F+1,:], x2[:,1:F+1,:] # we want to exclude the starting token since we don't have any previous knowledge about it 

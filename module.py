@@ -1,5 +1,6 @@
 import pytorch_lightning as pl
 import pytorch_lightning as pl
+import pandas as pd
 import torch
 from dataloader import *
 from dataloader_comma import *
@@ -11,87 +12,96 @@ import numpy as np
 
 
 class LaneModule(pl.LightningModule):
-
-    def __init__(self, model, bs=1, multitask="angle", dataset="comma"):
+    '''Pytorch lightning module to train angle, distance or multitask procedures'''
+    def __init__(self, model, bs, multitask="angle", dataset="comma"):
         super(LaneModule, self).__init__()
         self.model = model
         self.dataset = dataset,
-        self.num_workers = 2
+        self.num_workers = 10
         self.multitask = multitask
         self.bs = bs
         self.i = 0
-        self.loss = nn.MSELoss()
-        if self.multitask  == "multitask":
-            self.distanceloss = nn.MSELoss()
-    def forward(self, x):
-        return self.model(x)
+        self.loss = self.mse_loss
+
+    def forward(self, x, angle, distance, vego):
+        return self.model(x, angle, distance, vego)
+
+    def mse_loss(self, input, target, mask, reduction="mean"):
+        out = (input[~mask]-target[~mask])**2
+        return out.mean() if reduction == "mean" else out 
 
     def calculate_loss(self, logits, angle, distance):
         if self.multitask == "multitask":
             logits_angle, logits_dist = logits
-            #print(logits_angle, angle, logits_dist, distance)
-            print(logits_angle.shape, angle.shape)
-            loss_angle = torch.sqrt(self.loss(logits_angle.squeeze(), angle.squeeze()))
-            loss_distance = torch.sqrt(self.loss(logits_dist.squeeze(), distance.squeeze()))
+            mask = distance.squeeze() == 0.0
+            loss_angle = torch.sqrt(self.loss(logits_angle.squeeze(), angle.squeeze(), mask))
+            loss_distance = torch.sqrt(self.loss(logits_dist.squeeze(), distance.squeeze(), mask))
+            if loss_angle.isnan() or loss_distance.isnan():
+                print(loss_angle, loss_distance)
             loss = loss_angle, loss_distance
-            self.log_dict({"train_loss_angle": loss_angle}, on_epoch=True)
-            self.log_dict({"train_loss_distance": loss_distance}, on_epoch=True)
+            self.log_dict({"train_loss_angle": loss_angle}, on_epoch=True, batch_size=self.bs)
+            self.log_dict({"train_loss_distance": loss_distance}, on_epoch=True, batch_size=self.bs)
+            return loss_angle, loss_distance
         else:
-            self.i += 1
-            #if self.i %100 == 0:
-            #print(logits, angle)
-            #print(logits.shape, angle.shape)
-            loss = torch.sqrt(self.loss(logits.squeeze(), angle.squeeze()))
-        return loss
+            mask = distance.squeeze() == 0.0
+            loss = torch.sqrt(self.loss(logits.squeeze(), angle.squeeze(), mask))
+            return loss
 
     def training_step(self, batch, batch_idx):
-        #print("step_end")
-        meta, image_array, segm_masks, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
-        logits = self(image_array)
+        _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
+        logits = self(image_array, angle, distance, vego)
         loss = self.calculate_loss(logits, angle, distance)
         if self.multitask == "multitask":
             loss_angle, loss_dist = loss
             loss = (loss_angle + loss_dist)/2
-            self.log_dict({"val_loss_dist": loss_dist}, on_epoch=True)
-            self.log_dict({"val_loss_angle": loss_angle}, on_epoch=True)
-        self.log_dict({"train_loss": loss}, on_epoch=True)
+            self.log_dict({"val_loss_dist": loss_dist}, on_epoch=True, batch_size=self.bs)
+            self.log_dict({"val_loss_angle": loss_angle}, on_epoch=True, batch_size=self.bs)
+        self.log_dict({"train_loss": loss}, on_epoch=True, batch_size=self.bs)
         return loss
 
-    def validation_step(self, batch, batch_idx):
-        meta, image_array, segm_masks, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
-        logits = self(image_array)
-        loss = self.calculate_loss(logits, angle, distance)
+    def predict_step(self, batch, batch_idx):
+        _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
+        logits = self(image_array, angle, distance, vego)
+        return logits, angle, distance
 
+    def validation_step(self, batch, batch_idx):
+        _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
+        logits = self(image_array, angle, distance, vego)
+        loss = self.calculate_loss(logits, angle, distance)
+        
         if self.multitask == "multitask":
             loss_angle, loss_dist = loss
             loss = (loss_angle + loss_dist)/2
-            self.log_dict({"val_loss_dist": loss_dist}, on_epoch=True)
-            self.log_dict({"val_loss_angle": loss_angle}, on_epoch=True)
-        self.log_dict({"val_loss": loss}, on_epoch=True)
+            self.log_dict({"val_loss_dist": loss_dist}, on_epoch=True, batch_size=self.bs)
+            self.log_dict({"val_loss_angle": loss_angle}, on_epoch=True, batch_size=self.bs)
+        self.log_dict({"val_loss": loss}, on_epoch=True, batch_size=self.bs)
         
         return loss
 
     def test_step(self, batch, batch_idx):
-        meta, image_array, segm_masks, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
-        logits = self(image_array)
+        _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
+        logits = self(image_array, angle, distance, vego)
         loss = self.calculate_loss(logits, angle, distance)
+
         if self.multitask == "multitask":
             loss_angle, loss_dist = loss
             loss = (loss_angle + loss_dist)/2
-            self.log_dict({"test_loss_dist": loss_dist}, on_epoch=True)
-            self.log_dict({"test_loss_angle": loss_angle}, on_epoch=True)
-        self.log_dict({"test_loss": loss}, on_epoch=True)
+            self.log_dict({"test_loss_dist": loss_dist}, on_epoch=True, batch_size=self.bs)
+            self.log_dict({"test_loss_angle": loss_angle}, on_epoch=True, batch_size=self.bs)
+        self.log_dict({"test_loss": loss}, on_epoch=True, batch_size=self.bs)
         return loss 
 
     def training_epoch_end(self, outputs):
         losses = torch.mean(torch.stack([x['loss'] for x in outputs]))
-        self.log_dict({"train_loss_accumulated": losses })
+        self.log_dict({"train_loss_accumulated": losses }, batch_size=self.bs)
+
     def validation_epoch_end(self, outputs):
         losses = torch.mean(torch.stack([x for x in outputs]))
-        self.log_dict({"val_loss_accumulated": losses })
+        self.log_dict({"val_loss_accumulated": losses }, batch_size=self.bs)
+
     def test_epoch_end(self, outputs):
         losses = torch.mean(torch.stack([x for x in outputs]))
-        self.log_dict({"test_loss_accumulated": losses })
+        self.log_dict({"test_loss_accumulated": losses }, batch_size=self.bs)
 
     def train_dataloader(self):
         return self.get_dataloader(dataset_type="train")
@@ -100,6 +110,9 @@ class LaneModule(pl.LightningModule):
         return self.get_dataloader(dataset_type="val")
 
     def test_dataloader(self):
+        return self.get_dataloader(dataset_type="test")
+
+    def predict_dataloader(self):
         return self.get_dataloader(dataset_type="test")
 
     def configure_optimizers(self):
@@ -111,6 +124,8 @@ class LaneModule(pl.LightningModule):
         return DataLoader(ds, batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
         
 def pad_collate(batch):
+    '''just in case if there were different sequence lengths, 
+    but currently all lengths should be the same when batching'''
     meta, img, segm, angle, dist = zip(*batch)
     m_lens = [len(x) for x in meta]
     i_lens = [len(y) for y in img]

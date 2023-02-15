@@ -1,16 +1,9 @@
 from torch.utils.data import Dataset  # For custom data-sets
 import torchvision.transforms as transforms
-from torchvision.transforms import functional as F
 import numpy as np
 import torch
 import h5py
-from hampel import hampel 
-import pandas as pd
-from scipy import signal
-from scipy.spatial.transform import Rotation
-from decimal import Decimal
-import torchvision.transforms.functional as TF
-import random
+import cv2
 
 class CommaDataset(Dataset):
     def __init__(
@@ -23,87 +16,104 @@ class CommaDataset(Dataset):
         assert dataset_type in ["train", "val", "test"]
         self.dataset_type = dataset_type
         self.max_len = 240
+        self.max_dist = 70
+        self.min_dist = 0
         self.multitask = multitask
         self.min_angle, self.max_angle, self.range_angle = (2.1073424e-08, 0.102598816, 0.102598794)
         self.out_size = out_size
         self.use_transform = use_transform
         self.normalize = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+        self.resize = transforms.Resize((224,224))
         self.normalize_values = False
         if dataset_type == "train":
             data_path = "/data1/jessica/data/toyota/train_comma_1.hfd5"
             data_path2 = "/data1/jessica/data/toyota/train_comma_2.hfd5"
+            data_path3 = "/data1/jessica/data/toyota/train_comma_c2.hfd5"
+            data_path4 = "/data1/jessica/data/toyota/train_comma_c3.hfd5"
         elif dataset_type == "test":
             data_path = "/data1/jessica/data/toyota/test_comma_1.hfd5"
+            data_path2 = "/data1/jessica/data/toyota/test_comma_c2.hfd5"
+            data_path3 = "/data1/jessica/data/toyota/test_comma_c3.hfd5"
         elif dataset_type == "val":
             data_path = "/data1/jessica/data/toyota/val_comma_1.hfd5"
+            data_path2 = "/data1/jessica/data/toyota/val_comma_c2.hfd5"
+            data_path3 = "/data1/jessica/data/toyota/val_comma_c3.hfd5"
         self.people_seqs = []
-        with h5py.File(data_path, "r") as f:
-                self.all_angle_max = 0 
-                self.all_angle_min = 100000
-                self.all_dist_max = 0 
-                self.all_dist_min = 100000
-                for i, seq_key in enumerate(list(f.keys())):
-                    person_seq = {}
-                    keys_ = f[seq_key].keys()#'angle', 'brake', 'dist', 'gas', 'image', 'time', 'vEgo'
-                    for key in keys_:                        
-                        seq = f[seq_key][key][()]
-                        if len(seq) < 100:
-                            break
-                        person_seq[key] = seq
-                    if len(person_seq.keys()) == 7:
-                        self.people_seqs.append(person_seq)
-                    else: 
-                        print(len(person_seq.keys()), 'failt')
+        self.h5_file = h5py.File(data_path, "r")
+        self.keys = list(self.h5_file.keys())
+        self.keys.remove('10')
+        self.keys.remove('17')
         if dataset_type == "train":
-            with h5py.File(data_path2, "r") as f:
-                self.all_angle_max = 0 
-                self.all_angle_min = 100000
-                self.all_dist_max = 0 
-                self.all_dist_min = 100000
-                for i, seq_key in enumerate(list(f.keys())):
-                    person_seq = {}
-                    keys_ = f[seq_key].keys()#'angle', 'brake', 'dist', 'gas', 'image', 'time', 'vEgo'
-                    for key in keys_:                        
-                        seq = f[seq_key][key][()]
-                        if len(seq) < 100:
-                            break
-                        person_seq[key] = seq
-                    if len(person_seq.keys()) == 7:
-                        self.people_seqs.append(person_seq)
-                    else: 
-                        print(len(person_seq.keys()), 'failt')
-        print("len",len(self.people_seqs))
+            self.keys.remove('37')
+            self.keys.remove('53')
+            self.keys.remove('55')
+            self.keys.remove('58')
+            self.h5_file2 = h5py.File(data_path2, "r")
+            self.keys2 = list(self.h5_file2.keys())
+            good_keys = [0, 1, 4, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 19, 20, 21, 24, 25, 27, 29, 30, 31, 32, 33, 34, 35, 37, 38, 39, 40, 41, 42, 45, 46, 50, 52, 53]#[0, 1, 4, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 18, 19, 20, 21, 24, 25, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 45, 46, 50, 52, 53]
+            gk2 = np.array([55, 56, 57, 60, 62, 64, 65, 66, 67, 68, 69, 70, 72, 73, 76, 77, 78, 81, 82, 84, 87, 88, 89, 90, 91, 92, 93, 95, 96, 97, 98, 99, 100, 103, 104, 105, 106]) - 55# np.array([55, 56, 57, 60, 62, 63, 64, 65, 66, 67, 68, 69, 70, 72, 73, 75, 76, 77, 78, 81, 82, 84, 85, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 103, 104, 105, 106]) -55
+            self.keys = list(np.array(self.keys)[good_keys])
+            self.keys2 = list(np.array(self.keys2)[gk2])[:-1]
+            self.h5_file3 = h5py.File(data_path3, "r")
+            self.keys3 = list(self.h5_file3.keys())
+            self.h5_file4 = h5py.File(data_path4, "r")
+            self.keys4 = list(self.h5_file4.keys())
+        else:
+            self.keys4 = []
+
+        if dataset_type == "val":
+            good_keys = [1, 6, 9, 10, 11, 12, 14, 15]
+            self.keys = np.array(self.keys)[good_keys]
+            self.h5_file2 = h5py.File(data_path2, "r")
+            self.keys2 = list(self.h5_file2.keys())
+            self.h5_file3 = h5py.File(data_path3, "r")
+            self.keys3 = list(self.h5_file3.keys())
+            
+        if dataset_type == "test":
+            good_keys = [0, 6, 8, 9, 10, 13]
+            self.keys = np.array(self.keys)[good_keys]
+            self.h5_file2 = h5py.File(data_path2, "r")
+            self.keys2 = list(self.h5_file2.keys())[0:3] + list(self.h5_file2.keys())[5:]
+            self.h5_file3 = h5py.File(data_path3, "r")
+            self.keys3 = list(self.h5_file3.keys())[:-1]
+           
 
     def __len__(self):
-        return len(self.people_seqs)
+        return len(self.keys) + len(self.keys2) + len(self.keys3) + len(self.keys4)
 
     def __getitem__(self, idx):
-        sequences = self.people_seqs[idx]
-        #rint = random.randint(0,max(0, len(sequences['image_array'])-(self.max_len+1))) #to randomize sequence
-        start = 0#rint if len(sequences['image_array']) > self.max_len else 0
-        end = self.max_len#rint+self.max_len if len(sequences['image_array']) > self.max_len else -1
-        imgs = sequences['image'] if len(sequences['image']) <= 240 else sequences['image'][1::5]
-        vEgo = sequences['vEgo'] if len(sequences['vEgo']) <= 240 else sequences['vEgo'][1::5]
-        distances = sequences['dist'] if len(sequences['dist']) <= 240 else sequences['dist'][1::5]
-        angle = sequences['angle'] if len(sequences['angle']) <= 240 else sequences['angle'][1::5]
+        person_seq = {}
+        if idx < len(self.keys):
+            seq_key  = self.keys[idx]
+            keys_ = self.h5_file[seq_key].keys()#'angle', 'brake', 'dist', 'gas', 'image', 'time', 'vEgo'
+            file = self.h5_file
+        elif idx < len(self.keys) + len(self.keys2):
+            seq_key  = self.keys2[idx - len(self.keys)]
+            keys_ = self.h5_file2[seq_key].keys()
+            file = self.h5_file2
+        elif idx < len(self.keys) + len(self.keys2) + len(self.keys3):
+            seq_key  = self.keys3[idx - len(self.keys) - len(self.keys2)]
+            keys_ = self.h5_file3[seq_key].keys()
+            file = self.h5_file3
+        else:
+            seq_key  = self.keys4[idx - len(self.keys) - len(self.keys2) - len(self.keys3)]
+            keys_ = self.h5_file4[seq_key].keys()
+            file = self.h5_file4
 
-        images = torch.from_numpy(np.array(imgs).astype(float)).permute(0,3,1,2)[start:end]#[start:end]
-        masks = 0#torch.from_numpy(sequences['segm_masks'].astype(int))[start:end].permute(0,3,1,2)
-        #images = F.resize(self.normalize(images.type(torch.float)), (224, 224))
-        #masks = F.resize(masks, (224, 224))
-        vego = torch.from_numpy(np.array(vEgo).astype(float))[start:end]
-        angles = torch.from_numpy(np.array(angle).astype(float))[start:end]
-        distances = torch.from_numpy(np.array(sequences['dist']))[start:end]
-        max_dist = 70
-        min_dist = 0
-        distances[distances > max_dist] = 0
+        for key in keys_:                        
+            seq = file[seq_key][key][()]
+            seq = seq if len(seq) <= 241 else seq[1::5]
+            person_seq[key] = torch.from_numpy(np.array(seq[0:self.max_len]).astype(float)).type(torch.float32)
+        sequences = person_seq
+        distances = sequences['dist']
+        images = sequences['image']
+        images = images[:,0:160, :,:]
+        images = self.normalize(images.permute(0,3,1,2)/255.0)
+        images = self.resize(images)
+        images_cropped = images
+        #distances[distances > self.max_dist] = 0
         #distances = ((distances - min_dist) / (max_dist - min_dist))
-        #distances = torch.from_numpy(signal.resample(distances, len(images)))#[start:end]
-        if self.normalize_values: 
-            angles = 2*((angles - self.all_angle_min)/(self.all_angle_max-self.all_angle_min))-1
-            distances = 2*((angles - self.all_dist_min)/(self.all_dist_max-self.all_dist_min))-1
-        res = torch.zeros(len(sequences['angle']))[start:end], images.type(torch.float32),  vego.type(torch.float32),  angles.type(torch.float32), distances.type(torch.float32)
+        res = images_cropped, images_cropped,  sequences['vEgo'],  sequences['angle'], distances
         if self.multitask == "distance":
-            res = torch.zeros(len(sequences['angle']))[start:end], images.type(torch.float32),  vego.type(torch.float32), distances, angles.type(torch.float32)
-        #print(torch.zeros(len(sequences['angle']))[start:end].shape, images.type(torch.float32).shape,  images.type(torch.float32).shape, distances.type(torch.float32).shape, angles.type(torch.float32).shape)
+            res = images_cropped, images_cropped, sequences['vEgo'], distances, sequences['angle']
         return res 
