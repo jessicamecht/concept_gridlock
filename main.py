@@ -20,7 +20,7 @@ def save_preds(logits, target, save_name):
 def get_arg_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('-task', default="angle", type=str)  
-    parser.add_argument('-train', default=False, type=bool)  
+    parser.add_argument('-train', default=True, type=bool)  
     parser.add_argument('-gpu_num', default=0, type=int) 
     parser.add_argument('-dataset', default="comma", type=str)  
     parser.add_argument('-backbone', default="resnet", type=str) 
