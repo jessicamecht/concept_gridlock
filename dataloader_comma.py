@@ -51,7 +51,7 @@ class CommaDataset(Dataset):
         sequences = person_seq
         distances = sequences['dist']
         images = sequences['image']
-        images = images[:,0:160, :,:]
+        images = images[:,0:160, :,:]#crop the image to remove the view of the inside car console
         images = self.normalize(images.permute(0,3,1,2)/255.0)
         images = self.resize(images)
         images_cropped = images
