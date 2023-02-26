@@ -11,13 +11,14 @@ import numpy as np
 
 class LaneModule(pl.LightningModule):
     '''Pytorch lightning module to train angle, distance or multitask procedures'''
-    def __init__(self, model, bs, multitask="angle", dataset="comma"):
+    def __init__(self, model, bs, multitask="angle", dataset="comma", time_horizon=1):
         super(LaneModule, self).__init__()
         self.model = model
         self.dataset = dataset,
         self.num_workers = 10
         self.multitask = multitask
         self.bs = bs
+        self.time_horizon
         self.i = 0
         self.loss = self.mse_loss
 
@@ -59,6 +60,11 @@ class LaneModule(pl.LightningModule):
         return loss
 
     def predict_step(self, batch, batch_idx):
+        if self.time_horizon > 1:
+            _, input_ids_img, input_ids_vego, input_ids_angle, input_ids_distance, target_ids_angle, target_ids_dist, _, _, _ = batch
+            logits = self(input_ids_img, input_ids_angle, input_ids_distance, input_ids_vego)[:, -self.time_horizon:]
+            return logits, target_ids_angle, target_ids_dist
+
         _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array, angle, distance, vego)
         return logits, angle, distance
@@ -78,6 +84,13 @@ class LaneModule(pl.LightningModule):
         return loss
 
     def test_step(self, batch, batch_idx):
+        if self.time_horizon > 1:
+            _, input_ids_img, input_ids_vego, input_ids_angle, input_ids_distance, target_ids_angle, target_ids_dist, _, _, _ = batch
+            logits = self(input_ids_img, input_ids_angle, input_ids_distance, input_ids_vego)[:, -self.time_horizon:]
+            loss = self.calculate_loss(logits, target_ids_angle, target_ids_dist)
+            self.log_dict({"test_loss": loss}, on_epoch=True, batch_size=self.bs)
+            return loss
+    
         _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array, angle, distance, vego)
         loss = self.calculate_loss(logits, angle, distance)
@@ -88,7 +101,7 @@ class LaneModule(pl.LightningModule):
             self.log_dict({"test_loss_dist": loss_dist}, on_epoch=True, batch_size=self.bs)
             self.log_dict({"test_loss_angle": loss_angle}, on_epoch=True, batch_size=self.bs)
         self.log_dict({"test_loss": loss}, on_epoch=True, batch_size=self.bs)
-        return loss 
+        return loss
 
     def training_epoch_end(self, outputs):
         losses = torch.mean(torch.stack([x['loss'] for x in outputs]))
@@ -120,21 +133,51 @@ class LaneModule(pl.LightningModule):
 
     def get_dataloader(self, dataset_type):
         ds = ONCEDataset(dataset_type=dataset_type, multitask=self.multitask) if self.dataset == "once" else CommaDataset(dataset_type=dataset_type, multitask=self.multitask)
-        return DataLoader(ds, batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
+        return DataLoader(ds, batch_size=self.bs, num_workers=self.num_workers, collate_fn=self.pad_collate)
         
-def pad_collate(batch):
-    '''just in case if there were different sequence lengths, 
-    but currently all lengths should be the same when batching'''
-    meta, img, segm, angle, dist = zip(*batch)
-    m_lens = [len(x) for x in meta]
-    i_lens = [len(y) for y in img]
-    s_lens = [len(x) for x in segm]
-    a_lens = [len(y) for y in angle]
-    d_lens = [len(y) for y in dist] if dist[0] != None else None 
+    def pad_collate(self, batch):
+        '''just in case if there were different sequence lengths, 
+        but currently all lengths should be the same when batching'''
+        meta, img, vego, angle, dist = zip(*batch)
+        m_lens = [len(x) for x in meta]
+        i_lens = [len(y) for y in img]
+        s_lens = [len(x) for x in vego]
+        a_lens = [len(y) for y in angle]
+        d_lens = [len(y) for y in dist] if dist[0] != None else None 
 
-    m_pad = pad_sequence(meta, batch_first=True, padding_value=0)
-    i_pad = pad_sequence(img, batch_first=True, padding_value=0)
-    segm_pad = pad_sequence(segm, batch_first=True, padding_value=0)
-    a_pad = pad_sequence(angle, batch_first=True, padding_value=0)
-    d_pad = pad_sequence(dist, batch_first=True, padding_value=0) if dist[0] != None else None 
-    return m_pad, i_pad, segm_pad, a_pad,d_pad, m_lens, i_lens, s_lens, a_lens, d_lens
+        m_pad = pad_sequence(meta, batch_first=True, padding_value=0)
+        i_pad = pad_sequence(img, batch_first=True, padding_value=0)
+        vego_pad = pad_sequence(vego, batch_first=True, padding_value=0)
+        a_pad = pad_sequence(angle, batch_first=True, padding_value=0)
+        d_pad = pad_sequence(dist, batch_first=True, padding_value=0) if dist[0] != None else None 
+
+        if self.time_horizon > 1 and self.dataset_type == "test":
+            input_ids_img = []
+            input_ids_angle = []
+            input_ids_dist = []
+            input_ids_vego = []
+            target_ids_angle = []
+            target_ids_dist = []
+            for meta, img, segm, angle, dist in batch:
+                input_sequence_img = img[:-self.time_horizon]
+                input_sequence_angle = angle[:-self.time_horizon]
+                input_sequence_dist = dist[:-self.time_horizon]
+                input_sequence_vego = img[:-self.time_horizon]
+                target_sequence_angle = angle[-self.time_horizon:]
+                target_sequence_dist = dist[-self.time_horizon:]
+
+                input_ids_img.append(input_sequence_img)
+                input_ids_angle.append(input_sequence_angle)
+                input_ids_dist.append(input_sequence_dist)
+                input_ids_vego.append(input_sequence_vego)
+                target_ids_angle.append(target_sequence_angle)
+                target_ids_dist.append(target_sequence_dist)
+            input_ids_img = torch.tensor(input_ids_img)
+            input_ids_angle = torch.tensor(input_ids_angle)
+            input_ids_dist = torch.tensor(input_ids_dist)
+            input_ids_vego = torch.tensor(input_ids_vego)
+            target_ids_angle = torch.tensor(target_ids_angle)
+            target_ids_dist = torch.tensor(target_ids_dist)
+            return meta, input_ids_img, input_ids_vego, input_ids_angle, input_ids_distance, target_ids_angle, target_ids_dist, s_lens, a_lens, d_lens
+
+        return m_pad, i_pad, vego_pad, a_pad,d_pad, m_lens, i_lens, s_lens, a_lens, d_lens
