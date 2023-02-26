@@ -80,8 +80,9 @@ class VTN(nn.Module):
         if backbone == "vit":
             self.backbone = vit_base_patch16_224(pretrained=True,num_classes=0,drop_path_rate=0.0,drop_rate=0.0)
             embed_dim = self.backbone.embed_dim
-            num_attention_heads=12
+            num_attention_heads=3
             mlp_size = 768+3 #image feature size + previous sensor feature size 
+            embed_dim = 768+3
         elif backbone== "resnet":
             resnet = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
             self.backbone = torch.nn.Sequential(*list(resnet.children())[:-1])
