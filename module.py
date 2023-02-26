@@ -1,6 +1,4 @@
 import pytorch_lightning as pl
-import pytorch_lightning as pl
-import pandas as pd
 import torch
 from dataloader import *
 from dataloader_comma import *
@@ -32,16 +30,16 @@ class LaneModule(pl.LightningModule):
 
     def calculate_loss(self, logits, angle, distance):
         if self.multitask == "multitask":
-            logits_angle, logits_dist = logits
+            logits_angle, logits_dist, param_angle, param_dist = logits
             mask = distance.squeeze() == 0.0
             loss_angle = torch.sqrt(self.loss(logits_angle.squeeze(), angle.squeeze(), mask))
             loss_distance = torch.sqrt(self.loss(logits_dist.squeeze(), distance.squeeze(), mask))
             if loss_angle.isnan() or loss_distance.isnan():
-                print(loss_angle, loss_distance)
+                print(logits_angle, loss_angle.item(), loss_distance.item(), logits_dist)
             loss = loss_angle, loss_distance
             self.log_dict({"train_loss_angle": loss_angle}, on_epoch=True, batch_size=self.bs)
             self.log_dict({"train_loss_distance": loss_distance}, on_epoch=True, batch_size=self.bs)
-            return loss_angle, loss_distance
+            return loss_angle, loss_distance, param_angle, param_dist
         else:
             mask = distance.squeeze() == 0.0
             loss = torch.sqrt(self.loss(logits.squeeze(), angle.squeeze(), mask))
@@ -52,8 +50,9 @@ class LaneModule(pl.LightningModule):
         logits = self(image_array, angle, distance, vego)
         loss = self.calculate_loss(logits, angle, distance)
         if self.multitask == "multitask":
-            loss_angle, loss_dist = loss
-            loss = (loss_angle + loss_dist)/2
+            loss_angle, loss_dist, param_angle, param_dist = loss
+            param_angle, param_dict = 0.3, 0.7
+            loss = (param_angle * loss_angle) + (param_dist * loss_dist)
             self.log_dict({"val_loss_dist": loss_dist}, on_epoch=True, batch_size=self.bs)
             self.log_dict({"val_loss_angle": loss_angle}, on_epoch=True, batch_size=self.bs)
         self.log_dict({"train_loss": loss}, on_epoch=True, batch_size=self.bs)
@@ -68,10 +67,10 @@ class LaneModule(pl.LightningModule):
         _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array, angle, distance, vego)
         loss = self.calculate_loss(logits, angle, distance)
-        
         if self.multitask == "multitask":
-            loss_angle, loss_dist = loss
-            loss = (loss_angle + loss_dist)/2
+            loss_angle, loss_dist, param_angle, param_dist = loss
+            param_angle, param_dict = 0.3, 0.7
+            loss = (param_angle * loss_angle) + (param_dist * loss_dist)
             self.log_dict({"val_loss_dist": loss_dist}, on_epoch=True, batch_size=self.bs)
             self.log_dict({"val_loss_angle": loss_angle}, on_epoch=True, batch_size=self.bs)
         self.log_dict({"val_loss": loss}, on_epoch=True, batch_size=self.bs)
@@ -82,10 +81,10 @@ class LaneModule(pl.LightningModule):
         _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         logits = self(image_array, angle, distance, vego)
         loss = self.calculate_loss(logits, angle, distance)
-
         if self.multitask == "multitask":
-            loss_angle, loss_dist = loss
-            loss = (loss_angle + loss_dist)/2
+            loss_angle, loss_dist, param_angle, param_dist = loss
+            param_angle, param_dict = 0.3, 0.7
+            loss = (param_angle * loss_angle) + (param_dist * loss_dist)
             self.log_dict({"test_loss_dist": loss_dist}, on_epoch=True, batch_size=self.bs)
             self.log_dict({"test_loss_angle": loss_angle}, on_epoch=True, batch_size=self.bs)
         self.log_dict({"test_loss": loss}, on_epoch=True, batch_size=self.bs)

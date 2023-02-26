@@ -71,11 +71,11 @@ class VTN(nn.Module):
     https://arxiv.org/abs/2102.00719
     """
 
-    def __init__(self,multitask="angle", backbone="resnet"):
+    def __init__(self, multitask="angle", backbone="resnet", multitask_param=True):
         super(VTN, self).__init__()
-        self._construct_network(multitask, backbone)
+        self._construct_network(multitask, backbone, multitask_param)
 
-    def _construct_network(self, multitask, backbone):
+    def _construct_network(self, multitask, backbone, multitask_param):
 
         if backbone == "vit":
             self.backbone = vit_base_patch16_224(pretrained=True,num_classes=0,drop_path_rate=0.0,drop_rate=0.0)
@@ -90,6 +90,7 @@ class VTN(nn.Module):
             mlp_size = 512+3 #image feature size + previous sensor feature size 
 
         self.multitask = multitask
+        self.multitask_param = multitask_param
         self.cls_token = nn.Parameter(torch.randn(1, 1, embed_dim))
         #self.pe = PositionalEncoding(embed_dim) #Did not add positional encoding because VTN paper found better results without
 
@@ -119,6 +120,9 @@ class VTN(nn.Module):
                 nn.Dropout(0.5),
                 nn.Linear(mlp_size, num_classes)
             )
+        if self.multitask and self.multitask_param:
+            self.multitask_param_angle = nn.Parameter(torch.tensor([1.0]))
+            self.multitask_param_dist = nn.Parameter(torch.tensor([1.0]))
 
     def forward(self, x, angle, distance, vego):
         # we need to roll the previous sensor features, so that we do not include the step that we want to predict
@@ -175,11 +179,10 @@ class VTN(nn.Module):
         # MLP head
         x = x["last_hidden_state"]
 
-        
         if self.multitask:
             x2 = self.mlp_head_2(x)
         x = self.mlp_head(x)
         if self.multitask != "multitask":
             return x[:,1:F+1,:] # we want to exclude the starting token since we don't have any previous knowledge about it 
         else:
-            return x[:,1:F+1,:], x2[:,1:F+1,:] # we want to exclude the starting token since we don't have any previous knowledge about it 
+            return x[:,1:F+1,:], x2[:,1:F+1,:], self.multitask_param_angle, self.multitask_param_dist # we want to exclude the starting token since we don't have any previous knowledge about it 
