@@ -16,3 +16,13 @@ The gradient visualization can be found in **gradram.ipynb**.
 The checkpoints are in the google drive folder and can be used to run/continue training or testing.
 
 
+### Dependencies: 
+```
+pytorch_lightning
+transformers
+timm
+h5py
+scipy
+opencv-python
+tensorboard
+```
