@@ -15,10 +15,10 @@ class LaneModule(pl.LightningModule):
         super(LaneModule, self).__init__()
         self.model = model
         self.dataset = dataset,
-        self.num_workers = 10
+        self.num_workers = 1
         self.multitask = multitask
         self.bs = bs
-        self.time_horizon
+        self.time_horizon = time_horizon
         self.i = 0
         self.loss = self.mse_loss
 
@@ -52,7 +52,7 @@ class LaneModule(pl.LightningModule):
         loss = self.calculate_loss(logits, angle, distance)
         if self.multitask == "multitask":
             loss_angle, loss_dist, param_angle, param_dist = loss
-            param_angle, param_dict = 0.3, 0.7
+            param_angle, param_dist = 0.3, 0.7
             loss = (param_angle * loss_angle) + (param_dist * loss_dist)
             self.log_dict({"val_loss_dist": loss_dist}, on_epoch=True, batch_size=self.bs)
             self.log_dict({"val_loss_angle": loss_angle}, on_epoch=True, batch_size=self.bs)
@@ -60,12 +60,21 @@ class LaneModule(pl.LightningModule):
         return loss
 
     def predict_step(self, batch, batch_idx):
-        if self.time_horizon > 1:
-            _, input_ids_img, input_ids_vego, input_ids_angle, input_ids_distance, target_ids_angle, target_ids_dist, _, _, _ = batch
-            logits = self(input_ids_img, input_ids_angle, input_ids_distance, input_ids_vego)[:, -self.time_horizon:]
-            return logits, target_ids_angle, target_ids_dist
-
         _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
+        if self.time_horizon > 1:
+            logits_all = []
+            for i in range(self.time_horizon, vego.shape[1], self.time_horizon):
+                for j in range(self.time_horizon):
+                    input_ids_img, input_ids_vego, input_ids_angle, input_ids_distance = image_array[:,0:i+j, :, :, :], vego[:,0:i+j], angle[:,0:i+j], distance[:,0:i+j]
+                    if self.multitask == "angle" and len(logits_all) > 0:
+                        angle[:,i+j] = torch.tensor(logits_all)[-1]
+                    if self.multitask == "distance" and len(logits_all) > 0:
+                        distance[:,i+j] = torch.tensor(logits_all)[-1]
+                    logits = self(input_ids_img, input_ids_angle, input_ids_distance, input_ids_vego)[:, -1]
+                    logits_all.append(logits)
+            return torch.tensor(logits_all), angle[:,self.time_horizon:], distance[:,self.time_horizon:]
+
+        
         logits = self(image_array, angle, distance, vego)
         return logits, angle, distance
 
@@ -75,7 +84,7 @@ class LaneModule(pl.LightningModule):
         loss = self.calculate_loss(logits, angle, distance)
         if self.multitask == "multitask":
             loss_angle, loss_dist, param_angle, param_dist = loss
-            param_angle, param_dict = 0.3, 0.7
+            param_angle, param_dist = 0.3, 0.7
             loss = (param_angle * loss_angle) + (param_dist * loss_dist)
             self.log_dict({"val_loss_dist": loss_dist}, on_epoch=True, batch_size=self.bs)
             self.log_dict({"val_loss_angle": loss_angle}, on_epoch=True, batch_size=self.bs)
@@ -84,10 +93,19 @@ class LaneModule(pl.LightningModule):
         return loss
 
     def test_step(self, batch, batch_idx):
+        _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
         if self.time_horizon > 1:
-            _, input_ids_img, input_ids_vego, input_ids_angle, input_ids_distance, target_ids_angle, target_ids_dist, _, _, _ = batch
-            logits = self(input_ids_img, input_ids_angle, input_ids_distance, input_ids_vego)[:, -self.time_horizon:]
-            loss = self.calculate_loss(logits, target_ids_angle, target_ids_dist)
+            logits_all = []
+            for i in range(self.time_horizon,vego.shape[1], self.time_horizon):
+                for j in range(self.time_horizon)+1:
+                    input_ids_img, input_ids_vego, input_ids_angle, input_ids_distance = image_array[:,0:i+j, :, :, :], vego[:,0:i+j], angle[:,0:i+j], distance[:,0:i+j]
+                    if self.multitask == "angle":
+                        angle[:,i+j] = logits[:,-1]
+                    if self.multitask == "distance":
+                        distance[:,i+j] = input_ids_distance[:,-1]
+                    logits = self(input_ids_img, input_ids_angle, input_ids_distance, input_ids_vego)[:, -1]
+                    logits_all.append(logits)
+            loss = self.calculate_loss(torch.tensor(logits_all), angle[:,self.time_horizon:], distance[:,self.time_horizon:])
             self.log_dict({"test_loss": loss}, on_epoch=True, batch_size=self.bs)
             return loss
     
@@ -96,7 +114,7 @@ class LaneModule(pl.LightningModule):
         loss = self.calculate_loss(logits, angle, distance)
         if self.multitask == "multitask":
             loss_angle, loss_dist, param_angle, param_dist = loss
-            param_angle, param_dict = 0.3, 0.7
+            param_angle, param_dist = 0.3, 0.7
             loss = (param_angle * loss_angle) + (param_dist * loss_dist)
             self.log_dict({"test_loss_dist": loss_dist}, on_epoch=True, batch_size=self.bs)
             self.log_dict({"test_loss_angle": loss_angle}, on_epoch=True, batch_size=self.bs)
@@ -150,34 +168,5 @@ class LaneModule(pl.LightningModule):
         vego_pad = pad_sequence(vego, batch_first=True, padding_value=0)
         a_pad = pad_sequence(angle, batch_first=True, padding_value=0)
         d_pad = pad_sequence(dist, batch_first=True, padding_value=0) if dist[0] != None else None 
-
-        if self.time_horizon > 1 and self.dataset_type == "test":
-            input_ids_img = []
-            input_ids_angle = []
-            input_ids_dist = []
-            input_ids_vego = []
-            target_ids_angle = []
-            target_ids_dist = []
-            for meta, img, segm, angle, dist in batch:
-                input_sequence_img = img[:-self.time_horizon]
-                input_sequence_angle = angle[:-self.time_horizon]
-                input_sequence_dist = dist[:-self.time_horizon]
-                input_sequence_vego = img[:-self.time_horizon]
-                target_sequence_angle = angle[-self.time_horizon:]
-                target_sequence_dist = dist[-self.time_horizon:]
-
-                input_ids_img.append(input_sequence_img)
-                input_ids_angle.append(input_sequence_angle)
-                input_ids_dist.append(input_sequence_dist)
-                input_ids_vego.append(input_sequence_vego)
-                target_ids_angle.append(target_sequence_angle)
-                target_ids_dist.append(target_sequence_dist)
-            input_ids_img = torch.tensor(input_ids_img)
-            input_ids_angle = torch.tensor(input_ids_angle)
-            input_ids_dist = torch.tensor(input_ids_dist)
-            input_ids_vego = torch.tensor(input_ids_vego)
-            target_ids_angle = torch.tensor(target_ids_angle)
-            target_ids_dist = torch.tensor(target_ids_dist)
-            return meta, input_ids_img, input_ids_vego, input_ids_angle, input_ids_distance, target_ids_angle, target_ids_dist, s_lens, a_lens, d_lens
 
         return m_pad, i_pad, vego_pad, a_pad,d_pad, m_lens, i_lens, s_lens, a_lens, d_lens
