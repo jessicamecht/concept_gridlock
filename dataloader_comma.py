@@ -3,6 +3,7 @@ import torchvision.transforms as transforms
 import numpy as np
 import torch
 import h5py
+from scipy import ndimage
 import cv2
 
 class CommaDataset(Dataset):
@@ -11,12 +12,14 @@ class CommaDataset(Dataset):
         dataset_type="train",
         out_size=(240, 320),
         use_transform=False,
-        multitask="angle"
+        multitask="angle",
+        ground_truth="desired"
     ):
         assert dataset_type in ["train", "val", "test"]
         self.dataset_type = dataset_type
         self.max_len = 240
         self.max_dist = 70
+        self.ground_truth = ground_truth
         self.min_dist = 0
         self.multitask = multitask
         self.min_angle, self.max_angle, self.range_angle = (2.1073424e-08, 0.102598816, 0.102598794)
@@ -25,12 +28,7 @@ class CommaDataset(Dataset):
         self.normalize = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
         self.resize = transforms.Resize((224,224))
         self.normalize_values = False
-        if dataset_type == "train":
-            data_path = "/data1/jessica/data/toyota/comma_train_filtered.h5py"
-        elif dataset_type == "test":
-            data_path = "/data1/jessica/data/toyota/comma_test_filtered.h5py"
-        elif dataset_type == "val":
-            data_path = "/data1/jessica/data/toyota/comma_val_filtered.h5py"
+        data_path = f"/data1/jessica/data/toyota/comma_{dataset_type}_filtered.h5py" if ground_truth == "regular" else f"/data1/jessica/data/toyota/comma_{dataset_type}_w_desired_filtered.h5py"
         self.people_seqs = []
         self.h5_file = h5py.File(data_path, "r")
         corrupt_idx = 62
@@ -52,7 +50,7 @@ class CommaDataset(Dataset):
             seq = seq if len(seq) <= 241 else seq[1::5]
             person_seq[key] = torch.from_numpy(np.array(seq[0:self.max_len]).astype(float)).type(torch.float32)
         sequences = person_seq
-        distances = sequences['dist']
+        distances = sequences['dist'] if self.ground_truth else ndimage.median_filter(sequences['desired_dist'], size=12)
         images = sequences['image']
         images = images[:,0:160, :,:]#crop the image to remove the view of the inside car console
         images = self.normalize(images.permute(0,3,1,2)/255.0)

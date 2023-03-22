@@ -25,7 +25,7 @@ def get_arg_parser():
     parser.add_argument('-gpu_num', default=0, type=int) 
     parser.add_argument('-dataset', default="comma", type=str)  
     parser.add_argument('-backbone', default="resnet", type=str) 
-    parser.add_argument('-bs', default=3, type=int) 
+    parser.add_argument('-bs', default=1, type=int) 
     parser.add_argument('-dev_run', default=False, type=bool) 
     parser.add_argument('-checkpoint_path', default='/home/jessica/personalized_driving_toyota/checkpoints_comma_angle/lightning_logs/version_17/checkpoints/epoch=21-step=1694.ckpt', type=str)
     return parser
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     model = VTN(multitask=multitask, backbone=args.backbone)
     module = LaneModule(model, multitask=multitask, dataset = args.dataset, bs=args.bs)
 
-    ckpt_pth = f"/data1/jessica/data/toyota/ckpts/checkpoints_{args.dataset}_{args.task}"
+    ckpt_pth = f"/data1/jessica/data/toyota/ckpts/ckpts_desired{args.dataset}_{args.task}"
     checkpoint_callback = ModelCheckpoint(save_top_k=2, monitor="val_loss_accumulated")
     logger = TensorBoardLogger(save_dir=ckpt_pth)
 
@@ -47,7 +47,7 @@ if __name__ == "__main__":
         accelerator="gpu",
         devices=[args.gpu_num] if torch.cuda.is_available() else None, 
         logger=logger,
-        max_epochs=50,
+        max_epochs=100,
         default_root_dir=ckpt_pth ,
         callbacks=[TQDMProgressBar(refresh_rate=5), checkpoint_callback],
         #, EarlyStopping(monitor="train_loss", mode="min")],#in case we want early stopping

@@ -15,7 +15,7 @@ class LaneModule(pl.LightningModule):
         super(LaneModule, self).__init__()
         self.model = model
         self.dataset = dataset,
-        self.num_workers = 1
+        self.num_workers = 10
         self.multitask = multitask
         self.bs = bs
         self.time_horizon = time_horizon
