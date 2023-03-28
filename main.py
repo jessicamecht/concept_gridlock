@@ -26,6 +26,7 @@ def get_arg_parser():
     parser.add_argument('-dataset', default="comma", type=str)  
     parser.add_argument('-backbone', default="resnet", type=str) 
     parser.add_argument('-bs', default=1, type=int) 
+    parser.add_argument('-ground_truth', default="desired", type=str) 
     parser.add_argument('-dev_run', default=False, type=bool) 
     parser.add_argument('-checkpoint_path', default='/home/jessica/personalized_driving_toyota/checkpoints_comma_angle/lightning_logs/version_17/checkpoints/epoch=21-step=1694.ckpt', type=str)
     return parser
@@ -36,7 +37,7 @@ if __name__ == "__main__":
     multitask = args.task
     early_stop_callback = EarlyStopping(monitor="val_loss_accumulated", min_delta=0.05, patience=5, verbose=False, mode="max")
     model = VTN(multitask=multitask, backbone=args.backbone)
-    module = LaneModule(model, multitask=multitask, dataset = args.dataset, bs=args.bs)
+    module = LaneModule(model, multitask=multitask, dataset = args.dataset, bs=args.bs, ground_truth=args.ground_truth)
 
     ckpt_pth = f"/data1/jessica/data/toyota/ckpts/ckpts_desired{args.dataset}_{args.task}"
     checkpoint_callback = ModelCheckpoint(save_top_k=2, monitor="val_loss_accumulated")

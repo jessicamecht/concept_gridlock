@@ -11,10 +11,11 @@ import numpy as np
 
 class LaneModule(pl.LightningModule):
     '''Pytorch lightning module to train angle, distance or multitask procedures'''
-    def __init__(self, model, bs, multitask="angle", dataset="comma", time_horizon=1):
+    def __init__(self, model, bs, multitask="angle", dataset="comma", time_horizon=1, ground_truth="desired"):
         super(LaneModule, self).__init__()
         self.model = model
-        self.dataset = dataset,
+        self.dataset = dataset
+        self.ground_truth = ground_truth
         self.num_workers = 10
         self.multitask = multitask
         self.bs = bs
@@ -70,7 +71,11 @@ class LaneModule(pl.LightningModule):
                         angle[:,i+j] = torch.tensor(logits_all)[-1]
                     if self.multitask == "distance" and len(logits_all) > 0:
                         distance[:,i+j] = torch.tensor(logits_all)[-1]
-                    logits = self(input_ids_img, input_ids_angle, input_ids_distance, input_ids_vego)[:, -1]
+                    if self.multitask == "multitask":
+                        logits = self(input_ids_img, input_ids_angle, input_ids_distance, input_ids_vego)
+                        logits = logits[0][:, -1], logits[1][:, -1]
+                    else:
+                        logits = self(input_ids_img, input_ids_angle, input_ids_distance, input_ids_vego)[:, -1]
                     logits_all.append(logits)
             return torch.tensor(logits_all), angle[:,self.time_horizon:], distance[:,self.time_horizon:]
 
@@ -150,7 +155,7 @@ class LaneModule(pl.LightningModule):
         return g_opt
 
     def get_dataloader(self, dataset_type):
-        ds = ONCEDataset(dataset_type=dataset_type, multitask=self.multitask) if self.dataset == "once" else CommaDataset(dataset_type=dataset_type, multitask=self.multitask)
+        ds = ONCEDataset(dataset_type=dataset_type, multitask=self.multitask) if self.dataset == "once" else CommaDataset(dataset_type=dataset_type, multitask=self.multitask, ground_truth=self.ground_truth)
         return DataLoader(ds, batch_size=self.bs, num_workers=self.num_workers, collate_fn=self.pad_collate)
         
     def pad_collate(self, batch):
