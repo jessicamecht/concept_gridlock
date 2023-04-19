@@ -15,14 +15,24 @@ The gradient visualization can be found in **gradram.ipynb**.
 
 The checkpoints are in the google drive folder and can be used to run/continue training or testing.
 
-
 ### Dependencies: 
 ```
 pytorch_lightning
 transformers
 timm
+numpy
+pandas
 h5py
 scipy
 opencv-python
 tensorboard
 ```
+
+______
+
+# Pre-processing Comma Data
+comma_preprocess/raw_readers.ipynb reads the chunks from the comma dataset and combines them to h5py file
+It uses components of Comma openpilot (https://github.com/commaai/openpilot)
+
+
+You can download the comma data here: https://academictorrents.com/details/65a2fbc964078aff62076ff4e103f18b951c5ddb
