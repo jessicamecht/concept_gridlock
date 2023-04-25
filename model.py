@@ -3,6 +3,9 @@ import torch.nn as nn
 from transformers import LongformerModel, LongformerConfig
 import torch.nn.functional as F
 from timm.models.vision_transformer import vit_base_patch16_224
+import clip
+from PIL import Image
+from utils import * 
 from torchvision.models import resnet18, ResNet18_Weights
 
 def dfs_freeze(model):
@@ -71,24 +74,31 @@ class VTN(nn.Module):
     https://arxiv.org/abs/2102.00719
     """
 
-    def __init__(self, multitask="angle", backbone="resnet", multitask_param=True):
+    def __init__(self, multitask="angle", backbone="resnet", device="cuda:2", multitask_param=True, concept_features=False):
         super(VTN, self).__init__()
-        self._construct_network(multitask, backbone, multitask_param)
+        self.device = device
+        self._construct_network(multitask, backbone, multitask_param, concept_features)
 
-    def _construct_network(self, multitask, backbone, multitask_param):
+    def _construct_network(self, multitask, backbone, multitask_param, concept_features):
+        clip_model, clip_preprocess = clip.load("ViT-L/14", device=self.device)
+        self.clip_model = clip_model
+        self.clip_preprocess = clip_preprocess
+        self.clip_model.eval()
+
+        additional_feat_size = 3 if not concept_features else 27
 
         if backbone == "vit":
             self.backbone = vit_base_patch16_224(pretrained=True,num_classes=0,drop_path_rate=0.0,drop_rate=0.0)
             embed_dim = self.backbone.embed_dim
-            num_attention_heads=3
-            mlp_size = 768+3 #image feature size + previous sensor feature size 
-            embed_dim = 768+3
+            num_attention_heads=3 if not concept_features else 7
+            mlp_size = 768+additional_feat_size #image feature size + previous sensor feature size 
+            embed_dim = 768+additional_feat_size
         elif backbone== "resnet":
             resnet = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
             self.backbone = torch.nn.Sequential(*list(resnet.children())[:-1])
-            embed_dim = 512+3 #image feature size + previous sensor feature size 
-            num_attention_heads=5
-            mlp_size = 512+3 #image feature size + previous sensor feature size 
+            embed_dim = 512+additional_feat_size #image feature size + previous sensor feature size 
+            num_attention_heads=5 if not concept_features else 7
+            mlp_size = 512+additional_feat_size #image feature size + previous sensor feature size 
 
         self.multitask = multitask
         self.multitask_param = multitask_param
@@ -125,9 +135,14 @@ class VTN(nn.Module):
             self.multitask_param_angle = nn.Parameter(torch.tensor([1.0]))
             self.multitask_param_dist = nn.Parameter(torch.tensor([1.0]))
 
-    def forward(self, x, angle, distance, vego):
+    def forward(self, img, angle, distance, vego):
         # we need to roll the previous sensor features, so that we do not include the step that we want to predict
         # we also substitude empty 0th entry then with 1st entry
+        x = img
+        logits_per_image, logits_per_text = self.clip_model(img.squeeze(), scenarios_tokens.to(x.device))
+        probs = logits_per_image.softmax(dim=-1)
+
+
         angle = torch.roll(angle, shifts=1, dims=1)
         angle[:,0] = angle[:,1]
         distance = torch.roll(distance, shifts=1, dims=1)
@@ -142,6 +157,7 @@ class VTN(nn.Module):
         x = x.reshape(B, F, -1)
 
         #concatenate the sensor features 
+        x = torch.cat([x, probs.unsqueeze(0)], dim=-1)
         x = torch.cat((x, angle.unsqueeze(-1)), dim=-1)
         x = torch.cat((x, distance.unsqueeze(-1)), dim=-1)
         x = torch.cat((x, vego.unsqueeze(-1)), dim=-1)

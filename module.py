@@ -5,7 +5,7 @@ from dataloader_comma import *
 from torch.utils.data import DataLoader
 from torch.nn import functional as F
 import torch.nn as nn 
-from utils impport * 
+from utils import pad_collate
 from torch.nn.utils.rnn import pad_sequence
 import numpy as np
 
@@ -157,5 +157,5 @@ class LaneModule(pl.LightningModule):
 
     def get_dataloader(self, dataset_type):
         ds = ONCEDataset(dataset_type=dataset_type, multitask=self.multitask) if self.dataset == "once" else CommaDataset(dataset_type=dataset_type, multitask=self.multitask, ground_truth=self.ground_truth)
-        return DataLoader(ds, batch_size=self.bs, num_workers=self.num_workers, collate_fn=self.pad_collate)
+        return DataLoader(ds, batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
         

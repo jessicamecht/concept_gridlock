@@ -53,7 +53,7 @@ class CommaDataset(Dataset):
             person_seq[key] = torch.from_numpy(np.array(seq[0:self.max_len]).astype(float)).type(torch.float32)
         sequences = person_seq
         distances = sequences['dist']
-        distances = ndimage.median_filter(distances, size=12, mode='nearest')
+        distances = ndimage.median_filter(distances, size=128, mode='nearest')
 
         steady_state = ~np.array(sequences['gaspressed']).astype(bool) & ~np.array(sequences['brakepressed']).astype(bool) & ~np.array(sequences['leftBlinker']).astype(bool) & ~np.array(sequences['rightBlinker']).astype(bool)
         last_idx = 0
@@ -65,6 +65,7 @@ class CommaDataset(Dataset):
                 last_idx = i
         #distances = get_miss(distances)
         desired_gap[-12:] = distances[-12:].mean().item()
+
         distances = sequences['dist'] if self.ground_truth else desired_gap
         images = sequences['image']
         images = images[:,0:160, :,:]#crop the image to remove the view of the inside car console

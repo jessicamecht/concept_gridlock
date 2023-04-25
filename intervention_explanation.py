@@ -17,12 +17,6 @@ dataset = CommaDataset(dataset_type=dataset_type, multitask=multitask, return_fu
 loader = DataLoader(dataset, batch_size=1, num_workers=5)
 save_path = '/data3/jessica/data/toyota/explanation/'
 
-scenarios = ["car in front changes the lane", "obstacle in front", 'another car in front', 'no car in front', 'a truck in front', 'truck in front changes the lane',
-"bad weather", "good weather", 'poor visibility on the street', 'night driving',
-"a lot of traffic", 'no traffic, free road', 'traffic jam',
-'car megres into a new street', 'traffic light in front',
-'bad road conditions', 'construction zone', 'road sign', 'pedestrian ahead', 'bicyle ahead', 
-'a truck on the left', 'a truck on the right', 'a car on the left', 'a car on the right', 'the car is passing another vehicle']
 text = clip.tokenize(scenarios).to(device)
 
 for j, batch in tqdm(enumerate(loader)):
