@@ -13,7 +13,8 @@ class CommaDataset(Dataset):
         out_size=(240, 320),
         use_transform=False,
         multitask="angle",
-        ground_truth="desired"
+        ground_truth="desired",
+        return_full=False, 
     ):
         assert dataset_type in ["train", "val", "test"]
         self.dataset_type = dataset_type
@@ -25,6 +26,7 @@ class CommaDataset(Dataset):
         self.min_angle, self.max_angle, self.range_angle = (2.1073424e-08, 0.102598816, 0.102598794)
         self.out_size = out_size
         self.use_transform = use_transform
+        self.return_full = return_full
         self.normalize = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
         self.resize = transforms.Resize((224,224))
         self.normalize_values = False
@@ -50,15 +52,33 @@ class CommaDataset(Dataset):
             seq = seq if len(seq) <= 241 else seq[1::5]
             person_seq[key] = torch.from_numpy(np.array(seq[0:self.max_len]).astype(float)).type(torch.float32)
         sequences = person_seq
-        distances = sequences['dist'] if self.ground_truth else ndimage.median_filter(sequences['desired_dist'], size=12)
+        distances = sequences['dist']
+        distances = ndimage.median_filter(distances, size=12, mode='nearest')
+
+        steady_state = ~np.array(sequences['gaspressed']).astype(bool) & ~np.array(sequences['brakepressed']).astype(bool) & ~np.array(sequences['leftBlinker']).astype(bool) & ~np.array(sequences['rightBlinker']).astype(bool)
+        last_idx = 0
+        desired_gap = np.zeros(distances.shape)
+
+        for i in range(len(steady_state)-1):
+            if steady_state[i] == True:
+                desired_gap[last_idx:i] = int(distances[i])
+                last_idx = i
+        #distances = get_miss(distances)
+        desired_gap[-12:] = distances[-12:].mean().item()
+        distances = sequences['dist'] if self.ground_truth else desired_gap
         images = sequences['image']
         images = images[:,0:160, :,:]#crop the image to remove the view of the inside car console
-        images = self.normalize(images.permute(0,3,1,2)/255.0)
+        images = images.permute(0,3,1,2)
+        if not self.return_full:
+            images = self.normalize(images/255.0)
         images = self.resize(images)
         images_cropped = images
         #distances[distances > self.max_dist] = 0
         #distances = ((distances - min_dist) / (max_dist - min_dist))
+        intervention = np.array(sequences['gaspressed']).astype(bool) | np.array(sequences['brakepressed']).astype(bool) 
         res = images_cropped, images_cropped,  sequences['vEgo'],  sequences['angle'], distances
+        if self.return_full: 
+            return images_cropped,  sequences['vEgo'],  sequences['angle'], distances, np.array(sequences['gaspressed']).astype(bool),  np.array(sequences['brakepressed']).astype(bool) 
         if self.multitask == "distance":
             res = images_cropped, images_cropped, sequences['vEgo'], distances, sequences['angle']
         return res 
