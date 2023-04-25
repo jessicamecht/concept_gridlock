@@ -37,7 +37,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     multitask = args.task
     early_stop_callback = EarlyStopping(monitor="val_loss_accumulated", min_delta=0.05, patience=5, verbose=False, mode="max")
-    model = VTN(multitask=multitask, backbone=args.backbone, concept_features=args.concept_features)
+    model = VTN(multitask=multitask, backbone=args.backbone, concept_features=args.concept_features, device = f"cuda:{args.gpu_num}")
     module = LaneModule(model, multitask=multitask, dataset = args.dataset, bs=args.bs, ground_truth=args.ground_truth)
 
     ckpt_pth = f"/data1/jessica/data/toyota/ckpts/ckpts_desired{args.dataset}_{args.task}"
