@@ -81,7 +81,7 @@ class VTN(nn.Module):
         self._construct_network(multitask, backbone, multitask_param, concept_features)
 
     def _construct_network(self, multitask, backbone, multitask_param, concept_features):
-        clip_model, clip_preprocess = clip.load("ViT-L/14", device=self.device)
+        clip_model, clip_preprocess = clip.load("ViT-B/32", device=self.device)
         self.clip_model = clip_model
         self.clip_preprocess = clip_preprocess
         self.clip_model.eval()
@@ -101,7 +101,10 @@ class VTN(nn.Module):
             embed_dim = 512+additional_feat_size #image feature size + previous sensor feature size 
             num_attention_heads=5 if not concept_features else 7
             mlp_size = 512+additional_feat_size #image feature size + previous sensor feature size 
-        #elif backbone == Noneprint()
+        elif backbone == "none" and concept_features:
+            embed_dim = 24
+            num_attention_heads=6
+            mlp_size = 24
 
         self.multitask = multitask
         self.multitask_param = multitask_param
@@ -146,7 +149,7 @@ class VTN(nn.Module):
             s = img.shape#[batch_size, seq_len, h,w,c]
             logits_per_image, logits_per_text = self.clip_model(img.reshape((img.shape[0]*img.shape[1], img.shape[2], img.shape[3], img.shape[4])), scenarios_tokens.to(x.device))
             probs = logits_per_image.softmax(dim=-1)
-            probs = logits_per_image.detach().reshape((int(img.shape[0]), int(logits_per_image.shape[0]/2), -1))
+            probs = logits_per_image.detach().reshape((int(img.shape[0]), int(logits_per_image.shape[0]/img.shape[0]), -1))
 
 
         angle = torch.roll(angle, shifts=1, dims=1)
@@ -158,9 +161,10 @@ class VTN(nn.Module):
 
         # spatial backbone
         B, F, C, H, W = x.shape
-        x = x.reshape(B * F, C, H, W)
-        x = self.backbone(x)
-        x = x.reshape(B, F, -1)
+        if self.backbone != "none":
+            x = x.reshape(B * F, C, H, W)
+            x = self.backbone(x)
+            x = x.reshape(B, F, -1)
 
         #concatenate the sensor features 
         if self.concept_features:
