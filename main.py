@@ -3,6 +3,7 @@ from model import *
 from module import * 
 from pytorch_lightning.callbacks.progress import TQDMProgressBar
 import torch 
+import yaml
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 import argparse
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -35,16 +36,25 @@ def get_arg_parser():
     return parser
 
 if __name__ == "__main__":
+
+    if torch.cuda.device_count() > 0 and torch.cuda.get_device_capability()[0] >= 7:
+        # Set the float32 matrix multiplication precision to 'high'
+        torch.set_float32_matmul_precision('high')
+
+
     parser = get_arg_parser()
     args = parser.parse_args()
     multitask = args.task
+
+   
     early_stop_callback = EarlyStopping(monitor="val_loss_accumulated", min_delta=0.05, patience=5, verbose=False, mode="max")
     model = VTN(multitask=multitask, backbone=args.backbone, concept_features=args.concept_features, device = f"cuda:{args.gpu_num}")
     module = LaneModule(model, multitask=multitask, dataset = args.dataset, bs=args.bs, ground_truth=args.ground_truth)
 
-    ckpt_pth = f"/data1/jessica/data/toyota/ckpts/ckpts_desired{args.dataset}_{args.task}/"
+    ckpt_pth = f"/data2/shared/jessica/data/toyota/ckpts/ckpts_desired{args.dataset}_{args.task}/"
     checkpoint_callback = ModelCheckpoint(save_top_k=2, monitor="val_loss_accumulated")
     logger = TensorBoardLogger(save_dir=ckpt_pth)
+    
 
     trainer = pl.Trainer(
         fast_dev_run=args.dev_run,
@@ -52,13 +62,17 @@ if __name__ == "__main__":
         accelerator='gpu',
         devices=[args.gpu_num] if torch.cuda.is_available() else None, 
         logger=logger,
-        max_epochs=50,
+        max_epochs=1,
         default_root_dir=ckpt_pth ,
         callbacks=[TQDMProgressBar(refresh_rate=5), checkpoint_callback],
         #, EarlyStopping(monitor="train_loss", mode="min")],#in case we want early stopping
         )
+
     if args.train:
         trainer.fit(module)
+        with open(f'{checkpoint_callback.best_model_path}/hparams.yaml', 'w') as f:
+            print(f'{checkpoint_callback.best_model_path}/hparams.yaml')
+            yaml.dump(hparams, f)
     else:
         ckpt_path=args.checkpoint_path
         preds = trainer.test(module, ckpt_path=ckpt_path)
