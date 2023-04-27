@@ -140,9 +140,10 @@ class VTN(nn.Module):
         # we need to roll the previous sensor features, so that we do not include the step that we want to predict
         # we also substitude empty 0th entry then with 1st entry
         x = img
-        logits_per_image, logits_per_text = self.clip_model(img.squeeze(), scenarios_tokens.to(x.device))
+        s = img.shape#[batch_size, seq_len, h,w,c]
+        logits_per_image, logits_per_text = self.clip_model(img.reshape((img.shape[0]*img.shape[1], img.shape[2], img.shape[3], img.shape[4])), scenarios_tokens.to(x.device))
         probs = logits_per_image.softmax(dim=-1)
-        probs = logits_per_image.detach()
+        probs = logits_per_image.detach().reshape((int(img.shape[0]), int(logits_per_image.shape[0]/2), -1))
 
 
         angle = torch.roll(angle, shifts=1, dims=1)
@@ -159,7 +160,7 @@ class VTN(nn.Module):
         x = x.reshape(B, F, -1)
 
         #concatenate the sensor features 
-        x = torch.cat([x, probs.unsqueeze(0)], dim=-1)
+        x = torch.cat([x, probs], dim=-1)
         x = torch.cat((x, angle.unsqueeze(-1)), dim=-1)
         x = torch.cat((x, distance.unsqueeze(-1)), dim=-1)
         x = torch.cat((x, vego.unsqueeze(-1)), dim=-1)

@@ -52,12 +52,11 @@ if __name__ == "__main__":
         accelerator='gpu',
         devices=[args.gpu_num] if torch.cuda.is_available() else None, 
         logger=logger,
-        max_epochs=100,
+        max_epochs=50,
         default_root_dir=ckpt_pth ,
         callbacks=[TQDMProgressBar(refresh_rate=5), checkpoint_callback],
         #, EarlyStopping(monitor="train_loss", mode="min")],#in case we want early stopping
         )
-    print(args.train, 'lkjhgfdfghjklkjhgfd')
     if args.train:
         trainer.fit(module)
     else:
