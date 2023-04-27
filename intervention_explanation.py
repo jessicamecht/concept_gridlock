@@ -9,8 +9,8 @@ from torch.utils.data import DataLoader
 
 import matplotlib.pyplot as plt
 
-device = "cpu"
-model, preprocess = clip.load("ViT-B/32", device=device)
+device = "cuda:2"
+model, preprocess = clip.load("ViT-L/14", device=device)
 multitask = "distance"
 dataset_type = 'train'
 dataset = CommaDataset(dataset_type=dataset_type, multitask=multitask, return_full=True)
@@ -30,19 +30,19 @@ for j, batch in tqdm(enumerate(loader)):
         del image_array, vego, angle, distance, gas, brake
         continue
 
-    for i, image in enumerate(images):
-        fig, ax = plt.subplots()
-        tensor = image.numpy().transpose((1, 2, 0))  # transpose tensor from C x H x W to H x W x C
-        pil_image = Image.fromarray((tensor).astype('uint8'))
-        img = preprocess(pil_image)
-        logits_per_image, logits_per_text = model(img.unsqueeze(0), text)
-        probs = logits_per_image.softmax(dim=-1).cpu().detach().numpy()
-        ax.imshow(image.permute(1,2,0).int())
-        fig.suptitle(scenarios[probs.argmax()])
-        name = save_path + f"{i}_{j}" + "_image.png"
+    #fig, ax = plt.subplots()
+    img = images
+    print(';lkjhgfghjkl', images.shape)
+    s = img.shape#[batch_size, seq_len, h,w,c]
+    logits_per_image, logits_per_text = model(img.to(device), scenarios_tokens.to(device))
+    probs = logits_per_image.detach()
+    probs = logits_per_image.softmax(dim=-1).cpu().detach().numpy()
+    #ax.imshow(image.permute(1,2,0).int())
+    #fig.suptitle(scenarios[probs.argmax()])
+    #name = save_path + f"{i}_{j}" + "_image.png"
 
-        fig.savefig(name)
-        result_dict = {scenarios[i]: str(probs.squeeze()[i]) for i in range(len(scenarios))}
-        with open(name.replace('_image.png', ".json"), 'w') as f:
-            json.dump(result_dict, f)
+     #fig.savefig(name)
+    #result_dict = {scenarios[i]: str(scenarios_tokens[probs.argmax()]) for i in range(len(scenarios))}
+    with open(f"{j}.json", 'w') as f:
+        json.dump(scenarios_tokens[probs.argmax()], f)
     del image_array, vego, angle, distance, gas, brake
