@@ -81,10 +81,11 @@ class VTN(nn.Module):
         self._construct_network(multitask, backbone, multitask_param, concept_features)
 
     def _construct_network(self, multitask, backbone, multitask_param, concept_features):
-        clip_model, clip_preprocess = clip.load("ViT-B/32", device=self.device)
+        clip_model, clip_preprocess = clip.load("ViT-L/14", device=self.device)
         self.clip_model = clip_model
         self.clip_preprocess = clip_preprocess
         self.clip_model.eval()
+        self.concept_features = concept_features
 
         additional_feat_size = 3 if not concept_features else 27
 
@@ -100,6 +101,7 @@ class VTN(nn.Module):
             embed_dim = 512+additional_feat_size #image feature size + previous sensor feature size 
             num_attention_heads=5 if not concept_features else 7
             mlp_size = 512+additional_feat_size #image feature size + previous sensor feature size 
+        #elif backbone == Noneprint()
 
         self.multitask = multitask
         self.multitask_param = multitask_param
@@ -140,10 +142,11 @@ class VTN(nn.Module):
         # we need to roll the previous sensor features, so that we do not include the step that we want to predict
         # we also substitude empty 0th entry then with 1st entry
         x = img
-        s = img.shape#[batch_size, seq_len, h,w,c]
-        logits_per_image, logits_per_text = self.clip_model(img.reshape((img.shape[0]*img.shape[1], img.shape[2], img.shape[3], img.shape[4])), scenarios_tokens.to(x.device))
-        probs = logits_per_image.softmax(dim=-1)
-        probs = logits_per_image.detach().reshape((int(img.shape[0]), int(logits_per_image.shape[0]/2), -1))
+        if self.concept_features:
+            s = img.shape#[batch_size, seq_len, h,w,c]
+            logits_per_image, logits_per_text = self.clip_model(img.reshape((img.shape[0]*img.shape[1], img.shape[2], img.shape[3], img.shape[4])), scenarios_tokens.to(x.device))
+            probs = logits_per_image.softmax(dim=-1)
+            probs = logits_per_image.detach().reshape((int(img.shape[0]), int(logits_per_image.shape[0]/2), -1))
 
 
         angle = torch.roll(angle, shifts=1, dims=1)
@@ -160,7 +163,8 @@ class VTN(nn.Module):
         x = x.reshape(B, F, -1)
 
         #concatenate the sensor features 
-        x = torch.cat([x, probs], dim=-1)
+        if self.concept_features:
+            x = torch.cat([x, probs], dim=-1)
         x = torch.cat((x, angle.unsqueeze(-1)), dim=-1)
         x = torch.cat((x, distance.unsqueeze(-1)), dim=-1)
         x = torch.cat((x, vego.unsqueeze(-1)), dim=-1)
