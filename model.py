@@ -77,10 +77,11 @@ class VTN(nn.Module):
     def __init__(self, multitask="angle", backbone="resnet", device="cuda:2", multitask_param=True, concept_features=False):
         super(VTN, self).__init__()
         self.device = device
+    
         self._construct_network(multitask, backbone, multitask_param, concept_features)
 
     def _construct_network(self, multitask, backbone, multitask_param, concept_features):
-        clip_model, clip_preprocess = clip.load("ViT-L/14", device=self.device)
+        clip_model, clip_preprocess = clip.load("ViT-B/32", device=self.device)
         self.clip_model = clip_model
         self.clip_preprocess = clip_preprocess
         self.clip_model.eval()
@@ -141,6 +142,7 @@ class VTN(nn.Module):
         x = img
         logits_per_image, logits_per_text = self.clip_model(img.squeeze(), scenarios_tokens.to(x.device))
         probs = logits_per_image.softmax(dim=-1)
+        probs = logits_per_image.detach()
 
 
         angle = torch.roll(angle, shifts=1, dims=1)
