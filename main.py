@@ -16,10 +16,7 @@ def save_preds(logits, target, save_name):
     df = pd.DataFrame()
     df['logits'] = logits.squeeze().reshape(b*s).tolist()
     df['target'] = target.squeeze().reshape(b*s).tolist()
-    Path(f'./{logger.log_dir}').mkdir(parents=True, exist_ok=True)
-    print(f'saving ./{save_name}.csv')
-    print(df)
-    df.to_csv(f'./{save_name}.csv', mode='a', index=False, header=False)
+    df.to_csv(f'{save_name}.csv', mode='a', index=False, header=False)
 
 def get_arg_parser():
     parser = argparse.ArgumentParser()
@@ -81,9 +78,9 @@ if __name__ == "__main__":
         for pred in preds:
             if args.task != "multitask":
                 predictions, preds_1, preds_2 = pred[0], pred[1], pred[2] 
-                save_preds(predictions, preds_1, args.task)
+                save_preds(predictions, preds_1, f"{checkpoint_callback.log_dir}/{args.task}")
             else:
                 preds, angle, dist = pred[0], pred[1], pred[2]
                 preds_angle, preds_dist = preds[0], preds[1]
-                save_preds(preds_angle, angle, "angle_multi")
-                save_preds(preds_dist, dist, "dist_multi")
+                save_preds(preds_angle, angle, f"{checkpoint_callback.log_dir}/angle_multi")
+                save_preds(preds_dist, dist, f"{checkpoint_callback.log_dir}dist_multi")
