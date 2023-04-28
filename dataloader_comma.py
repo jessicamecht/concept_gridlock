@@ -79,7 +79,7 @@ class CommaDataset(Dataset):
         intervention = np.array(sequences['gaspressed']).astype(bool) | np.array(sequences['brakepressed']).astype(bool) 
         res = images_cropped, images_cropped,  sequences['vEgo'],  sequences['angle'], distances
         if self.return_full: 
-            return images_cropped,  sequences['vEgo'],  sequences['angle'], distances, np.array(sequences['gaspressed']).astype(bool),  np.array(sequences['brakepressed']).astype(bool) , np.array(sequences['ccenabled']).astype(bool)
+            return images_cropped,  sequences['vEgo'],  sequences['angle'], distances, np.array(sequences['gaspressed']).astype(bool),  np.array(sequences['brakepressed']).astype(bool) , np.array(sequences['CruiseStateenabled']).astype(bool)
         if self.multitask == "distance":
             res = images_cropped, images_cropped, sequences['vEgo'], distances, sequences['angle']
         return res 
