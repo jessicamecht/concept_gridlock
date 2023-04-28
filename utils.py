@@ -8,7 +8,8 @@ scenarios = ["a picture a car in the lane in front which changes the lane", "a p
 'a picture of a car which megres into a new street or lane', 'a picture of cars waiting at traffic light',
 'a picture of cars driving on a broken road', 'a picture of cars driving close to a construction zone', 'a picture of cars driving and a road sign', 
 'a picture of cars driving and pedestrians ahead on the street', 'a picture of cars driving and a bicyle ahead', 
-'a picture of a truck on the left', 'a picture of a truck on the right', 'a picture of a car close by on the left', 'a picture of a car close by on the right']
+'a picture of a truck on the left', 'a picture of a truck on the right', 'a picture of a car close by on the left', 'a picture of a car close by on the right', 
+'a picture of cars driving in the distance', 'a picture of cars driving close by']
 scenarios_tokens = clip.tokenize(scenarios)
 
 def pad_collate(batch):
