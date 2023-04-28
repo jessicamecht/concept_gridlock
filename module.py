@@ -23,6 +23,7 @@ class LaneModule(pl.LightningModule):
         self.time_horizon = time_horizon
         self.i = 0
         self.loss = self.mse_loss
+        self.save_hyperparameters()
 
     def forward(self, x, angle, distance, vego):
         return self.model(x, angle, distance, vego)

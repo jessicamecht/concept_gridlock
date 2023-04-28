@@ -62,7 +62,7 @@ if __name__ == "__main__":
         accelerator='gpu',
         devices=[args.gpu_num] if torch.cuda.is_available() else None, 
         logger=logger,
-        max_epochs=1,
+        max_epochs=50,
         default_root_dir=ckpt_pth ,
         callbacks=[TQDMProgressBar(refresh_rate=5), checkpoint_callback],
         #, EarlyStopping(monitor="train_loss", mode="min")],#in case we want early stopping
@@ -71,7 +71,8 @@ if __name__ == "__main__":
     if args.train:
         trainer.fit(module)
         with open(f'{checkpoint_callback.best_model_path}/hparams.yaml', 'w') as f:
-            print(f'{checkpoint_callback.best_model_path}/hparams.yaml')
+            k = ''.join(checkpoint_callback.best_model_path.split("/")[:-1])
+            print(f'{k}/hparams.yaml')
             yaml.dump(hparams, f)
     else:
         ckpt_path=args.checkpoint_path

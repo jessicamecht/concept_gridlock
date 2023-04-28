@@ -86,6 +86,7 @@ class VTN(nn.Module):
         self.clip_preprocess = clip_preprocess
         self.clip_model.eval()
         self.concept_features = concept_features
+        self.backbone = backbone
 
         additional_feat_size = 3 if not concept_features else 27
 
@@ -102,9 +103,9 @@ class VTN(nn.Module):
             num_attention_heads=5 if not concept_features else 7
             mlp_size = 512+additional_feat_size #image feature size + previous sensor feature size 
         elif backbone == "none" and concept_features:
-            embed_dim = 24
-            num_attention_heads=6
-            mlp_size = 24
+            embed_dim = 24+3
+            num_attention_heads=3
+            mlp_size = 24+3
 
         self.multitask = multitask
         self.multitask_param = multitask_param
@@ -168,7 +169,7 @@ class VTN(nn.Module):
 
         #concatenate the sensor features 
         if self.concept_features:
-            x = torch.cat([x, probs], dim=-1)
+            x = torch.cat([x, probs], dim=-1) if self.backbone != 'none' else probs
         x = torch.cat((x, angle.unsqueeze(-1)), dim=-1)
         x = torch.cat((x, distance.unsqueeze(-1)), dim=-1)
         x = torch.cat((x, vego.unsqueeze(-1)), dim=-1)
