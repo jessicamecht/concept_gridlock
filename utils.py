@@ -1,14 +1,14 @@
 from torch.nn.utils.rnn import pad_sequence
 import clip
-scenarios = ["a picture of a car in the lane in front which changes the lane", "a picture of an obstacle in the lane in front", 
+scenarios = ["a picture a car in the lane in front which changes the lane", "a picture of an obstacle in the lane in front", 
 'a picture of another car in the lane in front that is close by', 'a picture of no car in the lane in front', 'a picture of a truck in the lane in front',
-'a picture of a truck in the lane in front which changes the lane', "a picture of a street in bad weather", "a picture of a street in good weather", 
-'a picture of a street with poor visibility in front', 'a picture of cars driving at night', "a picture of a street with a lot of traffic", 
-'a picture of a street with no traffic, there are only few cars', 'a picture of a lot of cars in a traffic jam',
+'a picture of a truck in the lane in front which changes the lane', "a picture of cars on a street in rain", "a picture of cars driving on a street in sunny weather", "a picture of cars on a street in cloudy weather", 
+'a picture of a street with poor visibility in front', 'a picture of cars driving in the dark', 'a picture of cars driving during the day', "a picture of cars driving on a street with a lot of traffic", 
+'a picture of a street with no traffic, there are only few cars', 'a picture of cars driving in a traffic jam',
 'a picture of a car which megres into a new street or lane', 'a picture of cars waiting at traffic light',
-'a picture of cars driving on bad road conditions', 'a picture of cars driving close to a construction zone', 'a picture of cars driving and a road sign', 
+'a picture of cars driving on a broken road', 'a picture of cars driving close to a construction zone', 'a picture of cars driving and a road sign', 
 'a picture of cars driving and pedestrians ahead on the street', 'a picture of cars driving and a bicyle ahead', 
-'a picture of a truck on the left', 'a picture of a truck on the right', 'a picture of a car on the left', 'a picture of a car on the right']
+'a picture of a truck on the left', 'a picture of a truck on the right', 'a picture of a car close by on the left', 'a picture of a car close by on the right']
 scenarios_tokens = clip.tokenize(scenarios)
 
 def pad_collate(batch):
