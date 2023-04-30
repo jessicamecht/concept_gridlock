@@ -30,7 +30,7 @@ def get_arg_parser():
     parser.add_argument('-bs', default=1, type=int) 
     parser.add_argument('-ground_truth', default="desired", type=str) 
     parser.add_argument('-dev_run', default=False, type=bool) 
-    parser.add_argument('-checkpoint_path', default='/data1/jessica/data/toyota/ckpts/ckpts_desiredcomma_distance/lightning_logs/version_3/checkpoints/epoch=19-step=4940.ckpt', type=str)
+    parser.add_argument('-checkpoint_path', default='/data1/jessica/data/toyota/ckpts/ckpts_desiredcomma_distance/lightning_logs/version_18/checkpoints/epoch=49-step=6200.ckpt', type=str)
     return parser
 
 if __name__ == "__main__":
@@ -39,17 +39,15 @@ if __name__ == "__main__":
         # Set the float32 matrix multiplication precision to 'high'
         torch.set_float32_matmul_precision('high')
 
-
     parser = get_arg_parser()
     args = parser.parse_args()
     multitask = args.task
-
    
     early_stop_callback = EarlyStopping(monitor="val_loss_accumulated", min_delta=0.05, patience=5, verbose=False, mode="max")
     model = VTN(multitask=multitask, backbone=args.backbone, concept_features=args.concept_features, device = f"cuda:{args.gpu_num}")
     module = LaneModule(model, multitask=multitask, dataset = args.dataset, bs=args.bs, ground_truth=args.ground_truth, intervention=args.intervention)
 
-    ckpt_pth = f"/data2/shared/jessica/data/toyota/ckpts/ckpts_desired{args.dataset}_{args.task}/"
+    ckpt_pth = f"/data1/jessica/data/toyota/ckpts/ckpts_desired{args.dataset}_{args.task}/"
     checkpoint_callback = ModelCheckpoint(save_top_k=2, monitor="val_loss_accumulated")
     logger = TensorBoardLogger(save_dir=ckpt_pth)
     
@@ -79,9 +77,9 @@ if __name__ == "__main__":
         for pred in preds:
             if args.task != "multitask":
                 predictions, preds_1, preds_2 = pred[0], pred[1], pred[2] 
-                save_preds(predictions, preds_1, f"{checkpoint_callback.log_dir}/{args.task}")
+                save_preds(predictions, preds_1, f"{heckpoint_callback.best_model_path}/{args.task}")
             else:
                 preds, angle, dist = pred[0], pred[1], pred[2]
                 preds_angle, preds_dist = preds[0], preds[1]
-                save_preds(preds_angle, angle, f"{checkpoint_callback.log_dir}/angle_multi")
-                save_preds(preds_dist, dist, f"{checkpoint_callback.log_dir}dist_multi")
+                save_preds(preds_angle, angle, f"{heckpoint_callback.best_model_path}/angle_multi")
+                save_preds(preds_dist, dist, f"{heckpoint_callback.best_model_path}dist_multi")
