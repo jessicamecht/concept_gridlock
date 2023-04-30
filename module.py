@@ -12,34 +12,46 @@ import numpy as np
 
 class LaneModule(pl.LightningModule):
     '''Pytorch lightning module to train angle, distance or multitask procedures'''
-    def __init__(self, model, bs, multitask="angle", dataset="comma", time_horizon=1, ground_truth="desired"):
+    def __init__(self, model, bs, multitask="angle", dataset="comma", time_horizon=1, ground_truth="desired", intervention=False):
         super(LaneModule, self).__init__()
         self.model = model
         self.dataset = dataset
         self.ground_truth = ground_truth
+        self.intervention = intervention
         self.num_workers = 10
         self.multitask = multitask
         self.bs = bs
         self.time_horizon = time_horizon
         self.i = 0
         self.loss = self.mse_loss
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=['model'])
+        self.bce_loss = nn.BCELoss()
 
     def forward(self, x, angle, distance, vego):
         return self.model(x, angle, distance, vego)
 
     def mse_loss(self, input, target, mask, reduction="mean"):
+        input = input.float()
+        target = target.float()
+
         out = (input[~mask]-target[~mask])**2
         return out.mean() if reduction == "mean" else out 
 
     def calculate_loss(self, logits, angle, distance):
+        sm = nn.Softmax(dim=1)
         if self.multitask == "multitask":
             logits_angle, logits_dist, param_angle, param_dist = logits
             mask = distance.squeeze() == 0.0
-            loss_angle = torch.sqrt(self.loss(logits_angle.squeeze(), angle.squeeze(), mask))
+            if not self.intervention:
+                loss_angle = torch.sqrt(self.loss(logits_angle.squeeze(), angle.squeeze(), mask))
+            else: 
+                angle, distance = distance, angle
+                mask = distance.squeeze() == 0.0
+                loss_angle = self.bce_loss(sm(logits_angle.float()).squeeze()[~mask], angle.float().squeeze()[~mask])
             loss_distance = torch.sqrt(self.loss(logits_dist.squeeze(), distance.squeeze(), mask))
+
             if loss_angle.isnan() or loss_distance.isnan():
-                print(logits_angle, loss_angle.item(), loss_distance.item(), logits_dist)
+                print("ERROR")
             loss = loss_angle, loss_distance
             self.log_dict({"train_loss_angle": loss_angle}, on_epoch=True, batch_size=self.bs)
             self.log_dict({"train_loss_distance": loss_distance}, on_epoch=True, batch_size=self.bs)
@@ -157,6 +169,6 @@ class LaneModule(pl.LightningModule):
         return g_opt
 
     def get_dataloader(self, dataset_type):
-        ds = ONCEDataset(dataset_type=dataset_type, multitask=self.multitask) if self.dataset == "once" else CommaDataset(dataset_type=dataset_type, multitask=self.multitask, ground_truth=self.ground_truth)
+        ds = ONCEDataset(dataset_type=dataset_type, multitask=self.multitask) if self.dataset == "once" else CommaDataset(dataset_type=dataset_type, multitask=self.multitask if not self.intervention else "intervention", ground_truth=self.ground_truth)
         return DataLoader(ds, batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
         

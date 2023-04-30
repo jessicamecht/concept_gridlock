@@ -88,7 +88,7 @@ class VTN(nn.Module):
         self.concept_features = concept_features
         self.backbone = backbone
 
-        additional_feat_size = 3 if not concept_features else 27
+        additional_feat_size = 3 if not concept_features else len(scenarios)+3
 
         if backbone == "vit":
             self.backbone = vit_base_patch16_224(pretrained=True,num_classes=0,drop_path_rate=0.0,drop_rate=0.0)
@@ -100,12 +100,12 @@ class VTN(nn.Module):
             resnet = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
             self.backbone = torch.nn.Sequential(*list(resnet.children())[:-1])
             embed_dim = 512+additional_feat_size #image feature size + previous sensor feature size 
-            num_attention_heads=5 if not concept_features else 7
+            num_attention_heads=5 if not concept_features else 3
             mlp_size = 512+additional_feat_size #image feature size + previous sensor feature size 
         elif backbone == "none" and concept_features:
-            embed_dim = 24+3
-            num_attention_heads=3
-            mlp_size = 24+3
+            embed_dim = len(scenarios)+3
+            num_attention_heads=1
+            mlp_size = len(scenarios)+3
 
         self.multitask = multitask
         self.multitask_param = multitask_param

@@ -26,6 +26,7 @@ def get_arg_parser():
     parser.add_argument('-dataset', default="comma", type=str)  
     parser.add_argument('-backbone', default="resnet", type=str) 
     parser.add_argument('-concept_features', action=argparse.BooleanOptionalAction) 
+    parser.add_argument('-intervention', action=argparse.BooleanOptionalAction) 
     parser.add_argument('-bs', default=1, type=int) 
     parser.add_argument('-ground_truth', default="desired", type=str) 
     parser.add_argument('-dev_run', default=False, type=bool) 
@@ -46,7 +47,7 @@ if __name__ == "__main__":
    
     early_stop_callback = EarlyStopping(monitor="val_loss_accumulated", min_delta=0.05, patience=5, verbose=False, mode="max")
     model = VTN(multitask=multitask, backbone=args.backbone, concept_features=args.concept_features, device = f"cuda:{args.gpu_num}")
-    module = LaneModule(model, multitask=multitask, dataset = args.dataset, bs=args.bs, ground_truth=args.ground_truth)
+    module = LaneModule(model, multitask=multitask, dataset = args.dataset, bs=args.bs, ground_truth=args.ground_truth, intervention=args.intervention)
 
     ckpt_pth = f"/data2/shared/jessica/data/toyota/ckpts/ckpts_desired{args.dataset}_{args.task}/"
     checkpoint_callback = ModelCheckpoint(save_top_k=2, monitor="val_loss_accumulated")
