@@ -17,7 +17,7 @@ dataset_type = 'train'
 dataset = CommaDataset(dataset_type=dataset_type, multitask=multitask, return_full=True)
 loader = DataLoader(dataset, batch_size=1, num_workers=5)
 save_path = '/data3/jessica/data/toyota/explanation/'
-
+dfs = []
 text = clip.tokenize(scenarios).to(device)
 scenarios_tokens = scenarios_tokens.to(device)
 with torch.no_grad():
@@ -39,9 +39,10 @@ with torch.no_grad():
         probs = logits_per_image.detach()
         probs = logits_per_image.softmax(dim=-1).cpu().detach()
         df = pd.DataFrame([scenarios[i.item()] for i in probs.argmax(dim=-1)])
-        df.to_csv(f'{save_path}/{j}.csv')
+        dfs.append(df)
+df.con.to_csv(f'{save_path}/{j}.csv')
         
-        for i, img in enumerate(images):
+        '''for i, img in enumerate(images):
             fig, ax = plt.subplots()
             ax.imshow(img.permute(1,2,0).int())
             fig.suptitle(str(df.iloc[i]))
@@ -49,5 +50,5 @@ with torch.no_grad():
             result_dict = {scenarios[k]: str(probs.squeeze()[i][k].item()) for k in range(len(scenarios))}
             with open(name.replace('_image.png', ".json"), 'w') as f:
                 json.dump(result_dict, f)
-            fig.savefig(name)
+            fig.savefig(name)'''
         

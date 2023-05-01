@@ -11,12 +11,13 @@ from  pytorch_lightning.loggers.tensorboard import TensorBoardLogger
 from pathlib import Path
 import pandas as pd 
 
-def save_preds(logits, target, save_name):
+def save_preds(logits, target, save_name, p):
     b, s = target.shape
     df = pd.DataFrame()
     df['logits'] = logits.squeeze().reshape(b*s).tolist()
     df['target'] = target.squeeze().reshape(b*s).tolist()
-    df.to_csv(f'{save_name}.csv', mode='a', index=False, header=False)
+    print(p)
+    df.to_csv(f'{p}/{save_name}.csv', mode='a', index=False, header=False)
 
 def get_arg_parser():
     parser = argparse.ArgumentParser()
@@ -72,14 +73,15 @@ if __name__ == "__main__":
             yaml.dump(hparams, f)
     else:
         ckpt_path=args.checkpoint_path
+        p = "/".join(ckpt_path.split("/")[:-2])
         preds = trainer.test(module, ckpt_path=ckpt_path)
         preds = trainer.predict(module, ckpt_path=ckpt_path)
         for pred in preds:
             if args.task != "multitask":
                 predictions, preds_1, preds_2 = pred[0], pred[1], pred[2] 
-                save_preds(predictions, preds_1, f"{heckpoint_callback.best_model_path}/{args.task}")
+                save_preds(predictions, preds_1, f"{args.task}", p)
             else:
                 preds, angle, dist = pred[0], pred[1], pred[2]
                 preds_angle, preds_dist = preds[0], preds[1]
-                save_preds(preds_angle, angle, f"{heckpoint_callback.best_model_path}/angle_multi")
-                save_preds(preds_dist, dist, f"{heckpoint_callback.best_model_path}dist_multi")
+                save_preds(preds_angle, angle, f"angle_multi", p)
+                save_preds(preds_dist, dist, f"dist_multi", p)
