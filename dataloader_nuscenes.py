@@ -1,3 +1,4 @@
+from utils import * 
 from torch.utils.data import Dataset  # For custom data-sets
 import torchvision.transforms as transforms
 import numpy as np
@@ -6,7 +7,7 @@ import h5py
 from scipy import ndimage
 import cv2
 
-class CommaDataset(Dataset):
+class NUScenesDataset(Dataset):
     def __init__(
         self,
         dataset_type="train",
@@ -27,10 +28,7 @@ class CommaDataset(Dataset):
         data_path = f"/data1/shared/jessica/data1/data/toyota/comma_{dataset_type}_filtered.h5py" if ground_truth == "regular" else f"/data1/shared/jessica/data1/data/toyota/comma_{dataset_type}_w_desired_filtered.h5py"
         self.people_seqs = []
         self.h5_file = h5py.File(data_path, "r")
-        corrupt_idx = 62
         self.keys = list(self.h5_file.keys())
-        if dataset_type == "train":
-            self.keys.pop(corrupt_idx)
            
     def __len__(self):
         return len(self.keys)
@@ -38,18 +36,16 @@ class CommaDataset(Dataset):
     def __getitem__(self, idx):
         person_seq = {}
         seq_key  = self.keys[idx]
-        keys_ = self.h5_file[seq_key].keys()#'angle', 'brake', 'dist', 'gas', 'image', 'time', 'vEgo'
+        keys_ = self.h5_file[seq_key].keys()#'steering', 'brake', 'available_distance', 'image', 'utime', 'vehicle_speed'
         file = self.h5_file
         
         for key in keys_:                        
             seq = file[seq_key][key][()]
-            seq = seq if len(seq) <= 241 else seq[1::5]
             person_seq[key] = torch.from_numpy(np.array(seq[0:self.max_len]).astype(float)).type(torch.float32)
         sequences = person_seq
-        distances = sequences['dist']
-        distances = ndimage.median_filter(distances, size=128, mode='nearest')
+        distances = sequences['available_distance']
 
-        steady_state = ~np.array(sequences['gaspressed']).astype(bool) & ~np.array(sequences['brakepressed']).astype(bool) & ~np.array(sequences['leftBlinker']).astype(bool) & ~np.array(sequences['rightBlinker']).astype(bool)
+        steady_state =  ~np.array(sequences['brake']).astype(bool) & ~np.array(sequences['left_signal']).astype(bool) & ~np.array(sequences['right_signal']).astype(bool)
         last_idx = 0
         desired_gap = np.zeros(distances.shape)
 
@@ -57,12 +53,10 @@ class CommaDataset(Dataset):
             if steady_state[i] == True:
                 desired_gap[last_idx:i] = int(distances[i])
                 last_idx = i
-        #distances = get_miss(distances)
         desired_gap[-12:] = distances[-12:].mean().item()
 
-        distances = sequences['dist'] if self.ground_truth else desired_gap
+        distances = sequences['available_distance'] if self.ground_truth else desired_gap
         images = sequences['image']
-        images = images[:,0:160, :,:]#crop the image to remove the view of the inside car console
         images = images.permute(0,3,1,2)
         if not self.return_full:
             images = self.normalize(images/255.0)
@@ -70,12 +64,10 @@ class CommaDataset(Dataset):
             images = images/255.0
         images = self.resize(images)
         images_cropped = images
-        intervention = np.array(sequences['gaspressed']).astype(bool) | np.array(sequences['brakepressed']).astype(bool) 
-        res = images_cropped, images_cropped,  sequences['vEgo'],  sequences['angle'], distances
+        res = images_cropped, images_cropped,  sequences['vehicle_speed'],  sequences['steering'], distances
+        intervent = ~steady_state
         if self.return_full: 
-            return images_cropped,  sequences['vEgo'],  sequences['angle'], distances, np.array(sequences['gaspressed']).astype(bool),  np.array(sequences['brakepressed']).astype(bool) , np.array(sequences['CruiseStateenabled']).astype(bool)
+            return images_cropped,  sequences['vehicle_speed'],  sequences['steering'], distances, None,  np.array(sequences['brake']).astype(bool) , intervent
         if self.multitask == "distance":
-            res = images_cropped, images_cropped, sequences['vEgo'], distances, sequences['angle']
-        if self.multitask == "intervention":
-            res = images_cropped, images_cropped, sequences['vEgo'], distances, torch.tensor(np.array(sequences['gaspressed']).astype(bool) | np.array(sequences['brakepressed']).astype(bool))
+            res = images_cropped, images_cropped, sequences['vehicle_speed'], distances, sequences['steering']
         return res 
