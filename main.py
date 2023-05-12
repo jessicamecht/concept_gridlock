@@ -31,7 +31,7 @@ def get_arg_parser():
     parser.add_argument('-bs', default=1, type=int) 
     parser.add_argument('-ground_truth', default="desired", type=str) 
     parser.add_argument('-dev_run', default=False, type=bool) 
-    parser.add_argument('-checkpoint_path', default='/data1/jessica/data/toyota/ckpts/ckpts_desiredcomma_distance/lightning_logs/version_18/checkpoints/epoch=49-step=6200.ckpt', type=str)
+    parser.add_argument('-checkpoint_path', default='', type=str)
     return parser
 
 if __name__ == "__main__":
@@ -48,7 +48,7 @@ if __name__ == "__main__":
     model = VTN(multitask=multitask, backbone=args.backbone, concept_features=args.concept_features, device = f"cuda:{args.gpu_num}")
     module = LaneModule(model, multitask=multitask, dataset = args.dataset, bs=args.bs, ground_truth=args.ground_truth, intervention=args.intervention)
 
-    ckpt_pth = f"/data1/jessica/data/toyota/ckpts/ckpts_desired{args.dataset}_{args.task}/"
+    ckpt_pth = f"/data1/shared/jessica/data1/data/toyota/ckpts/ckpts_desired{args.dataset}_{args.task}/"
     checkpoint_callback = ModelCheckpoint(save_top_k=2, monitor="val_loss_accumulated")
     logger = TensorBoardLogger(save_dir=ckpt_pth)
     
@@ -71,17 +71,16 @@ if __name__ == "__main__":
             k = ''.join(checkpoint_callback.best_model_path.split("/")[:-1])
             print(f'{k}/hparams.yaml')
             yaml.dump(hparams, f)
-    else:
-        ckpt_path=args.checkpoint_path
-        p = "/".join(ckpt_path.split("/")[:-2])
-        preds = trainer.test(module, ckpt_path=ckpt_path)
-        preds = trainer.predict(module, ckpt_path=ckpt_path)
-        for pred in preds:
-            if args.task != "multitask":
-                predictions, preds_1, preds_2 = pred[0], pred[1], pred[2] 
-                save_preds(predictions, preds_1, f"{args.task}", p)
-            else:
-                preds, angle, dist = pred[0], pred[1], pred[2]
-                preds_angle, preds_dist = preds[0], preds[1]
-                save_preds(preds_angle, angle, f"angle_multi", p)
-                save_preds(preds_dist, dist, f"dist_multi", p)
+    ckpt_path=args.checkpoint_path
+    p = "/".join(ckpt_path.split("/")[:-2])
+    preds = trainer.test(module, ckpt_path=ckpt_path)
+    preds = trainer.predict(module, ckpt_path=ckpt_path)
+    for pred in preds:
+        if args.task != "multitask":
+            predictions, preds_1, preds_2 = pred[0], pred[1], pred[2] 
+            save_preds(predictions, preds_1, f"{args.task}", p)
+        else:
+            preds, angle, dist = pred[0], pred[1], pred[2]
+            preds_angle, preds_dist = preds[0], preds[1]
+            save_preds(preds_angle, angle, f"angle_multi", p)
+            save_preds(preds_dist, dist, f"dist_multi", p)

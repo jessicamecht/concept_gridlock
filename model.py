@@ -100,7 +100,7 @@ class VTN(nn.Module):
             resnet = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
             self.backbone = torch.nn.Sequential(*list(resnet.children())[:-1])
             embed_dim = 512+additional_feat_size #image feature size + previous sensor feature size 
-            num_attention_heads=5 if not concept_features else 3
+            num_attention_heads=5 if not concept_features else 4
             mlp_size = 512+additional_feat_size #image feature size + previous sensor feature size 
         elif backbone == "none" and concept_features:
             embed_dim = len(scenarios)+3
