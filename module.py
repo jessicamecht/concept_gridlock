@@ -169,6 +169,11 @@ class LaneModule(pl.LightningModule):
         return g_opt
 
     def get_dataloader(self, dataset_type):
-        ds = ONCEDataset(dataset_type=dataset_type, multitask=self.multitask) if self.dataset == "once" else CommaDataset(dataset_type=dataset_type, multitask=self.multitask if not self.intervention else "intervention", ground_truth=self.ground_truth)
+        if self.dataset == "once":
+            ds = ONCEDataset(dataset_type=dataset_type, multitask=self.multitask) 
+        elif self.dataset == "comma":
+            ds = CommaDataset(dataset_type=dataset_type, multitask=self.multitask if not self.intervention else "intervention", ground_truth=self.ground_truth)
+        elif self.dataset == 'nuscenes':
+            ds = NUScenesDataset(dataset_type=dataset_type, multitask=self.multitask if not self.intervention else "intervention", ground_truth=self.ground_truth, max_len=20)
         return DataLoader(ds, batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
         

@@ -14,11 +14,11 @@ class NUScenesDataset(Dataset):
         use_transform=False,
         multitask="angle",
         ground_truth="desired",
-        return_full=False, 
+        return_full=False,
+        max_len=240
     ):
         assert dataset_type in ["train", "val", "test"]
         self.dataset_type = dataset_type
-        self.max_len = 240
         self.ground_truth = ground_truth
         self.multitask = multitask
         self.use_transform = use_transform

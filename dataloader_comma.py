@@ -57,7 +57,6 @@ class CommaDataset(Dataset):
             if steady_state[i] == True:
                 desired_gap[last_idx:i] = int(distances[i])
                 last_idx = i
-        #distances = get_miss(distances)
         desired_gap[-12:] = distances[-12:].mean().item()
 
         distances = sequences['dist'] if self.ground_truth else desired_gap
