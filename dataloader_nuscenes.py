@@ -27,7 +27,7 @@ class NUScenesDataset(Dataset):
         self.normalize = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
         self.resize = transforms.Resize((224,224))
         #data_path = f"/data1/shared/jessica/data1/data/toyota/comma_{dataset_type}_filtered.h5py" if ground_truth == "regular" else f"/data1/shared/jessica/data1/data/toyota/comma_{dataset_type}_w_desired_filtered.h5py"
-        data_path = '/data1/shared/jessica/data1/data/toyota/nuscenes/test_mini_nuscenes.hfd5' if dataset_type != "train" else '/data1/shared/jessica/data3/data/toyota/train_consec_nuscenes.hfd5'
+        data_path = '/data1/jessica/data/toyota/nuscenes/test_mini_nuscenes.hfd5' if dataset_type != "train" else '/data3/jessica/data/toyota/train_consec_nuscenes.hfd5'
         self.people_seqs = []
         self.h5_file = h5py.File(data_path, "r")
         self.keys = list(self.h5_file.keys())
@@ -61,10 +61,10 @@ class NUScenesDataset(Dataset):
         distances = sequences['available_distance'] if self.ground_truth == "normal" else desired_gap
         images = sequences['image']
         images = images.permute(0,3,1,2)
-        if not self.return_full:
-            images = self.normalize(images/255.0)
-        else:
-            images = images/255.0
+        #if not self.return_full:
+        #    images = self.normalize(images/255.0)
+        #else:
+        #   #images = images/255.0
         images = self.resize(images)
         images_cropped = images
         res = images_cropped, images_cropped,  sequences['vehicle_speed'],  sequences['steering'], distances
