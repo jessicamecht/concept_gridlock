@@ -21,11 +21,13 @@ class NUScenesDataset(Dataset):
         self.dataset_type = dataset_type
         self.ground_truth = ground_truth
         self.multitask = multitask
+        self.max_len = max_len
         self.use_transform = use_transform
         self.return_full = return_full
         self.normalize = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
         self.resize = transforms.Resize((224,224))
-        data_path = f"/data1/shared/jessica/data1/data/toyota/comma_{dataset_type}_filtered.h5py" if ground_truth == "regular" else f"/data1/shared/jessica/data1/data/toyota/comma_{dataset_type}_w_desired_filtered.h5py"
+        #data_path = f"/data1/shared/jessica/data1/data/toyota/comma_{dataset_type}_filtered.h5py" if ground_truth == "regular" else f"/data1/shared/jessica/data1/data/toyota/comma_{dataset_type}_w_desired_filtered.h5py"
+        data_path = '/data1/shared/jessica/data1/data/toyota/nuscenes/test_mini_nuscenes.hfd5' if dataset_type != "train" else '/data1/shared/jessica/data3/data/toyota/train_consec_nuscenes.hfd5'
         self.people_seqs = []
         self.h5_file = h5py.File(data_path, "r")
         self.keys = list(self.h5_file.keys())
@@ -39,7 +41,8 @@ class NUScenesDataset(Dataset):
         keys_ = self.h5_file[seq_key].keys()#'steering', 'brake', 'available_distance', 'image', 'utime', 'vehicle_speed'
         file = self.h5_file
         
-        for key in keys_:                        
+        for key in keys_:   
+            if key == 'description': continue                    
             seq = file[seq_key][key][()]
             person_seq[key] = torch.from_numpy(np.array(seq[0:self.max_len]).astype(float)).type(torch.float32)
         sequences = person_seq
@@ -55,7 +58,7 @@ class NUScenesDataset(Dataset):
                 last_idx = i
         desired_gap[-12:] = distances[-12:].mean().item()
 
-        distances = sequences['available_distance'] if self.ground_truth else desired_gap
+        distances = sequences['available_distance'] if self.ground_truth == "normal" else desired_gap
         images = sequences['image']
         images = images.permute(0,3,1,2)
         if not self.return_full:

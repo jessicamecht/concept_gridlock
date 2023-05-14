@@ -1,7 +1,13 @@
 from torch.nn.utils.rnn import pad_sequence
 import numpy as np 
 import clip
-p = "/home/jessica/personalized_driving_toyota/scenarios.txt"
+p = "/home/jessica/personalized_driving_toyota/scenarios/scenarios.txt"
+with open(p) as file:
+    lines = [line.strip() for line in file]
+scenarios = lines
+scenarios_tokens = clip.tokenize(scenarios)
+
+p = "/home/jessica/personalized_driving_toyota/scenarios/scenarios_nuscenes.txt"
 with open(p) as file:
     lines = [line.strip() for line in file]
 scenarios = lines

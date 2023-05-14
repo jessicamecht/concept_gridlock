@@ -27,7 +27,7 @@ def get_arg_parser():
     parser.add_argument('-dataset', default="comma", type=str)  
     parser.add_argument('-backbone', default="resnet", type=str) 
     parser.add_argument('-concept_features', action=argparse.BooleanOptionalAction) 
-    parser.add_argument('-intervention', action=argparse.BooleanOptionalAction) 
+    parser.add_argument('-intervention_prediction', action=argparse.BooleanOptionalAction) 
     parser.add_argument('-bs', default=1, type=int) 
     parser.add_argument('-ground_truth', default="desired", type=str) 
     parser.add_argument('-dev_run', default=False, type=bool) 
@@ -46,7 +46,7 @@ if __name__ == "__main__":
    
     early_stop_callback = EarlyStopping(monitor="val_loss_accumulated", min_delta=0.05, patience=5, verbose=False, mode="max")
     model = VTN(multitask=multitask, backbone=args.backbone, concept_features=args.concept_features, device = f"cuda:{args.gpu_num}")
-    module = LaneModule(model, multitask=multitask, dataset = args.dataset, bs=args.bs, ground_truth=args.ground_truth, intervention=args.intervention)
+    module = LaneModule(model, multitask=multitask, dataset = args.dataset, bs=args.bs, ground_truth=args.ground_truth, intervention=args.intervention_prediction)
 
     ckpt_pth = f"/data1/shared/jessica/data1/data/toyota/ckpts/ckpts_desired{args.dataset}_{args.task}/"
     checkpoint_callback = ModelCheckpoint(save_top_k=2, monitor="val_loss_accumulated")
@@ -59,7 +59,7 @@ if __name__ == "__main__":
         accelerator='gpu',
         devices=[args.gpu_num] if torch.cuda.is_available() else None, 
         logger=logger,
-        max_epochs=50,
+        max_epochs=200,
         default_root_dir=ckpt_pth ,
         callbacks=[TQDMProgressBar(refresh_rate=5), checkpoint_callback],
         #, EarlyStopping(monitor="train_loss", mode="min")],#in case we want early stopping
@@ -67,10 +67,10 @@ if __name__ == "__main__":
 
     if args.train:
         trainer.fit(module)
-        with open(f'{checkpoint_callback.best_model_path}/hparams.yaml', 'w') as f:
+        '''with open(f'{checkpoint_callback.best_model_path}/hparams.yaml', 'w') as f:
             k = ''.join(checkpoint_callback.best_model_path.split("/")[:-1])
             print(f'{k}/hparams.yaml')
-            yaml.dump(hparams, f)
+            yaml.dump(hparams, f)'''
     ckpt_path=args.checkpoint_path
     p = "/".join(ckpt_path.split("/")[:-2])
     preds = trainer.test(module, ckpt_path=ckpt_path)
