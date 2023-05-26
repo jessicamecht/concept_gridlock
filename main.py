@@ -16,7 +16,6 @@ def save_preds(logits, target, save_name, p):
     df = pd.DataFrame()
     df['logits'] = logits.squeeze().reshape(b*s).tolist()
     df['target'] = target.squeeze().reshape(b*s).tolist()
-    print(p)
     df.to_csv(f'{p}/{save_name}.csv', mode='a', index=False, header=False)
 
 def get_arg_parser():
@@ -48,7 +47,7 @@ if __name__ == "__main__":
     model = VTN(multitask=multitask, backbone=args.backbone, concept_features=args.concept_features, device = f"cuda:{args.gpu_num}")
     module = LaneModule(model, multitask=multitask, dataset = args.dataset, bs=args.bs, ground_truth=args.ground_truth, intervention=args.intervention_prediction)
 
-    ckpt_pth = f"/data3/jessica/data/toyota/ckpts/ckpts_desired{args.dataset}_{args.task}/"
+    ckpt_pth = f"/data1/shared/jessica/data3/data/toyota/ckpts/ckpts_desired{args.dataset}_{args.task}/"
     checkpoint_callback = ModelCheckpoint(save_top_k=2, monitor="val_loss_accumulated")
     logger = TensorBoardLogger(save_dir=ckpt_pth)
     
@@ -59,7 +58,7 @@ if __name__ == "__main__":
         accelerator='gpu',
         devices=[args.gpu_num] if torch.cuda.is_available() else None, 
         logger=logger,
-        max_epochs=200,
+        max_epochs=400,
         default_root_dir=ckpt_pth ,
         callbacks=[TQDMProgressBar(refresh_rate=5), checkpoint_callback],
         #, EarlyStopping(monitor="train_loss", mode="min")],#in case we want early stopping
@@ -73,8 +72,8 @@ if __name__ == "__main__":
             yaml.dump(hparams, f)'''
     ckpt_path=args.checkpoint_path
     p = "/".join(ckpt_path.split("/")[:-2])
-    preds = trainer.test(module, ckpt_path=ckpt_path)
-    preds = trainer.predict(module, ckpt_path=ckpt_path)
+    preds = trainer.test(module, ckpt_path=ckpt_path if ckpt_path != '' else "best")
+    preds = trainer.predict(module, ckpt_path=ckpt_path if ckpt_path != '' else "best")
     for pred in preds:
         if args.task != "multitask":
             predictions, preds_1, preds_2 = pred[0], pred[1], pred[2] 

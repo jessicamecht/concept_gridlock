@@ -228,7 +228,7 @@ A photo of a car on a highway passing a school bus with its stop sign out
 A photo of a car on a highway making a sudden lane change
 A photo of a car on a highway swerving to avoid an obstacle
 A photo of a car on a highway in front drifting out of its lane
-a picture a car in the lane in front which changes the lane 
+a photo of a car in the lane in front which changes the lane 
 a photo of an obstacle in the lane in front 
 a photo of another car in the lane in front that is close by 
 a photo of no car in the lane in front 
