@@ -4,7 +4,7 @@ To execute the training (or testing respectively -- make sure to set the testing
 
 `python3 main.py -task distance -train -gpu_num 1 -dataset comma -backbone resnet -bs 4 -ground_truth normal`
 
-where backbone can be one of { clip, resnet, none }, backbone can be one of { normal, desired }, task  can be one of { distance, multitask, angle }, dataset can be one of { comma, nuscenes }, -train is a flag that should not be set if you want to run inference. -concept_features flag should only be set together with -backbone none
+you can increade the batch size according to your hardware. -backbone can be one of { clip, resnet, none }, -ground_truth can be one of { normal, desired }, -task  can be one of { distance, multitask, angle }, -dataset can be one of { comma, nuscenes }, -train is a flag that should not be set if you want to run inference (instead set -checkpoint_path). -concept_features flag should only be set together with -backbone none.
 
 I am using Python version 3.10.9.
 
