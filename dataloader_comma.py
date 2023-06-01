@@ -10,7 +10,6 @@ class CommaDataset(Dataset):
     def __init__(
         self,
         dataset_type="train",
-        out_size=(240, 320),
         use_transform=False,
         multitask="angle",
         ground_truth="desired",
@@ -19,18 +18,13 @@ class CommaDataset(Dataset):
         assert dataset_type in ["train", "val", "test"]
         self.dataset_type = dataset_type
         self.max_len = 240
-        self.max_dist = 70
         self.ground_truth = ground_truth
-        self.min_dist = 0
         self.multitask = multitask
-        self.min_angle, self.max_angle, self.range_angle = (2.1073424e-08, 0.102598816, 0.102598794)
-        self.out_size = out_size
         self.use_transform = use_transform
         self.return_full = return_full
         self.normalize = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
         self.resize = transforms.Resize((224,224))
-        self.normalize_values = False
-        data_path = f"/data1/jessica/data/toyota/comma_{dataset_type}_filtered.h5py" if ground_truth == "regular" else f"/data1/jessica/data/toyota/comma_{dataset_type}_w_desired_filtered.h5py"
+        data_path = f"/data1/shared/jessica/data1/data/toyota/comma_{dataset_type}_filtered.h5py" if ground_truth == "regular" else f"/data1/shared/jessica/data1/data/toyota/comma_{dataset_type}_w_desired_filtered.h5py"
         self.people_seqs = []
         self.h5_file = h5py.File(data_path, "r")
         corrupt_idx = 62
@@ -63,7 +57,6 @@ class CommaDataset(Dataset):
             if steady_state[i] == True:
                 desired_gap[last_idx:i] = int(distances[i])
                 last_idx = i
-        #distances = get_miss(distances)
         desired_gap[-12:] = distances[-12:].mean().item()
 
         distances = sequences['dist'] if self.ground_truth else desired_gap
@@ -72,10 +65,10 @@ class CommaDataset(Dataset):
         images = images.permute(0,3,1,2)
         if not self.return_full:
             images = self.normalize(images/255.0)
+        else:
+            images = images/255.0
         images = self.resize(images)
         images_cropped = images
-        #distances[distances > self.max_dist] = 0
-        #distances = ((distances - min_dist) / (max_dist - min_dist))
         intervention = np.array(sequences['gaspressed']).astype(bool) | np.array(sequences['brakepressed']).astype(bool) 
         res = images_cropped, images_cropped,  sequences['vEgo'],  sequences['angle'], distances
         if self.return_full: 

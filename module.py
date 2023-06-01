@@ -2,6 +2,7 @@ import pytorch_lightning as pl
 import torch
 from dataloader import *
 from dataloader_comma import *
+from dataloader_nuscenes import * 
 from torch.utils.data import DataLoader
 from torch.nn import functional as F
 import torch.nn as nn 
@@ -24,7 +25,7 @@ class LaneModule(pl.LightningModule):
         self.time_horizon = time_horizon
         self.i = 0
         self.loss = self.mse_loss
-        self.save_hyperparameters(ignore=['model'])
+        #self.save_hyperparameters(ignore=['model'])
         self.bce_loss = nn.BCELoss()
 
     def forward(self, x, angle, distance, vego):
@@ -169,6 +170,11 @@ class LaneModule(pl.LightningModule):
         return g_opt
 
     def get_dataloader(self, dataset_type):
-        ds = ONCEDataset(dataset_type=dataset_type, multitask=self.multitask) if self.dataset == "once" else CommaDataset(dataset_type=dataset_type, multitask=self.multitask if not self.intervention else "intervention", ground_truth=self.ground_truth)
+        if self.dataset == "once":
+            ds = ONCEDataset(dataset_type=dataset_type, multitask=self.multitask) 
+        elif self.dataset == "comma":
+            ds = CommaDataset(dataset_type=dataset_type, multitask=self.multitask if not self.intervention else "intervention", ground_truth=self.ground_truth)
+        elif self.dataset == 'nuscenes':
+            ds = NUScenesDataset(dataset_type=dataset_type, multitask=self.multitask if not self.intervention else "intervention", ground_truth=self.ground_truth, max_len=20)
         return DataLoader(ds, batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
         

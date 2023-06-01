@@ -1,15 +1,16 @@
 from torch.nn.utils.rnn import pad_sequence
+import numpy as np 
 import clip
-scenarios = ["a picture a car in the lane in front which changes the lane", "a picture of an obstacle in the lane in front", 
-'a picture of another car in the lane in front that is close by', 'a picture of no car in the lane in front', 'a picture of a truck in the lane in front',
-'a picture of a truck in the lane in front which changes the lane', "a picture of cars on a street in rain", "a picture of cars driving on a street in sunny weather", "a picture of cars on a street in cloudy weather", 
-'a picture of a street with poor visibility in front', 'a picture of cars driving in the dark', 'a picture of cars driving during the day', "a picture of cars driving on a street with a lot of traffic", 
-'a picture of a street with no traffic, there are only few cars', 'a picture of cars driving in a traffic jam',
-'a picture of a car which megres into a new street or lane', 'a picture of cars waiting at traffic light',
-'a picture of cars driving on a broken road', 'a picture of cars driving close to a construction zone', 'a picture of cars driving and a road sign', 
-'a picture of cars driving and pedestrians ahead on the street', 'a picture of cars driving and a bicyle ahead', 
-'a picture of a truck on the left', 'a picture of a truck on the right', 'a picture of a car close by on the left', 'a picture of a car close by on the right', 
-'a picture of cars driving in the distance', 'a picture of cars driving close by' ]
+p = "/home/jessica/personalized_driving_toyota/scenarios/scenarios.txt"
+with open(p) as file:
+    lines = [line.strip() for line in file]
+scenarios = lines
+scenarios_tokens = clip.tokenize(scenarios)
+
+p = "/home/jessica/personalized_driving_toyota/scenarios/scenarios_nuscenes.txt"
+with open(p) as file:
+    lines = [line.strip() for line in file]
+scenarios = lines
 scenarios_tokens = clip.tokenize(scenarios)
 
 def pad_collate(batch):
@@ -29,3 +30,19 @@ def pad_collate(batch):
     d_pad = pad_sequence(dist, batch_first=True, padding_value=0) if dist[0] != None else None 
 
     return m_pad, i_pad, vego_pad, a_pad,d_pad, m_lens, i_lens, s_lens, a_lens, d_lens
+
+def get_reduced_sample(ccenabled, reinstate=False, window = 10):
+    switch_indices = np.where(np.diff(ccenabled.squeeze().int()) == (1 if reinstate else -1))[0] + 1
+    intervention = np.zeros_like(ccenabled.squeeze(), dtype=bool)
+    intervention_before = np.zeros_like(ccenabled.squeeze(), dtype=bool)
+    intervention_after = np.zeros_like(ccenabled.squeeze(), dtype=bool)
+    expanded_indices_before = []
+    expanded_indices_after = []
+    for i in switch_indices:
+        expanded_indices_before.extend(list(range(max(i-window, 0), i)))
+        expanded_indices_after.extend(list(range(i+1, min(i+window, len(ccenabled.squeeze())))))
+        break
+    intervention[switch_indices] = True
+    intervention_before[expanded_indices_before] = True
+    intervention_after[expanded_indices_after] = True
+    return intervention, intervention_before, intervention_after

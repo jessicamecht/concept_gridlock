@@ -86,26 +86,35 @@ class VTN(nn.Module):
         self.clip_preprocess = clip_preprocess
         self.clip_model.eval()
         self.concept_features = concept_features
-        self.backbone = backbone
+        self.backbone_name = backbone
 
         additional_feat_size = 3 if not concept_features else len(scenarios)+3
 
         if backbone == "vit":
+            print("using vit backbone")
             self.backbone = vit_base_patch16_224(pretrained=True,num_classes=0,drop_path_rate=0.0,drop_rate=0.0)
             embed_dim = self.backbone.embed_dim
             num_attention_heads=3 if not concept_features else 7
             mlp_size = 768+additional_feat_size #image feature size + previous sensor feature size 
             embed_dim = 768+additional_feat_size
         elif backbone== "resnet":
+            print("using resnet backbone")
             resnet = resnet18(weights=ResNet18_Weights.IMAGENET1K_V1)
             self.backbone = torch.nn.Sequential(*list(resnet.children())[:-1])
             embed_dim = 512+additional_feat_size #image feature size + previous sensor feature size 
-            num_attention_heads=5 if not concept_features else 3
+            num_attention_heads=5 if not concept_features else 6
             mlp_size = 512+additional_feat_size #image feature size + previous sensor feature size 
         elif backbone == "none" and concept_features:
+            print("using concept features")
             embed_dim = len(scenarios)+3
             num_attention_heads=1
             mlp_size = len(scenarios)+3
+        elif backbone == "clip":
+            print("using clip backbone")
+            self.backbone = lambda x: clip_model.encode_image(x)
+            embed_dim = 512+3
+            num_attention_heads=5
+            mlp_size = 512+3
 
         self.multitask = multitask
         self.multitask_param = multitask_param
@@ -152,7 +161,6 @@ class VTN(nn.Module):
             probs = logits_per_image.softmax(dim=-1)
             probs = logits_per_image.detach().reshape((int(img.shape[0]), int(logits_per_image.shape[0]/img.shape[0]), -1))
 
-
         angle = torch.roll(angle, shifts=1, dims=1)
         angle[:,0] = angle[:,1]
         distance = torch.roll(distance, shifts=1, dims=1)
@@ -165,7 +173,10 @@ class VTN(nn.Module):
         if self.backbone != "none":
             x = x.reshape(B * F, C, H, W)
             x = self.backbone(x)
+            if self.backbone_name == "clip":
+                x = x.detach()
             x = x.reshape(B, F, -1)
+            
 
         #concatenate the sensor features 
         if self.concept_features:
