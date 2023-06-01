@@ -64,7 +64,7 @@ class LaneModule(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
-        logits = self(image_array, angle, distance, vego)
+        logits, attns = self(image_array, angle, distance, vego)
         loss = self.calculate_loss(logits, angle, distance)
         if self.multitask == "multitask":
             loss_angle, loss_dist, param_angle, param_dist = loss

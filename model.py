@@ -218,11 +218,12 @@ class VTN(nn.Module):
         
         # MLP head
         x = x["last_hidden_state"]
+        attentions = x['attentions']
 
         if self.multitask:
             x2 = self.mlp_head_2(x)
         x = self.mlp_head(x)
         if self.multitask != "multitask":
-            return x[:,1:F+1,:] # we want to exclude the starting token since we don't have any previous knowledge about it 
+            return x[:,1:F+1,:], attentions # we want to exclude the starting token since we don't have any previous knowledge about it 
         else:
             return x[:,1:F+1,:], x2[:,1:F+1,:], self.multitask_param_angle, self.multitask_param_dist # we want to exclude the starting token since we don't have any previous knowledge about it 
