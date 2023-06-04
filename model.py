@@ -190,13 +190,14 @@ class VTN(nn.Module):
         attention_mask = torch.ones((B, D), dtype=torch.long, device=x.device)
         cls_tokens = self.cls_token.expand(B, -1, -1)  # stole cls_tokens impl from Phil Wang, thanks
         x = torch.cat((cls_tokens, x), dim=1)
+        print(x.shape, 'ss')
 
         cls_atten = torch.ones(1).expand(B, -1).to(x.device)
         attention_mask = torch.cat((attention_mask, cls_atten), dim=1)
         attention_mask[:, 0] = 2 # initialize the start with a special number
 
         
-
+        print(';', self.temporal_encoder.config.attention_window[0])
         x, attention_mask, _ = pad_to_window_size_local(
             x,
             attention_mask,
@@ -207,18 +208,20 @@ class VTN(nn.Module):
         token_type_ids = torch.zeros(x.size()[:-1], dtype=torch.long, device=x.device)
         token_type_ids[:, 0] = 1
 
+        print(x.shape)
         x = self.temporal_encoder(input_ids=None,
                                   attention_mask=attention_mask,
                                   token_type_ids=token_type_ids,
                                   position_ids=None,#position_ids,
                                   inputs_embeds=x,
-                                  output_attentions=None,
+                                  output_attentions=True,
                                   output_hidden_states=None,
                                   return_dict=True)
         
         # MLP head
-        x = x["last_hidden_state"]
         attentions = x['attentions']
+        x = x["last_hidden_state"]
+        
 
         if self.multitask:
             x2 = self.mlp_head_2(x)
