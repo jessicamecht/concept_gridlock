@@ -16,7 +16,7 @@ def save_preds(logits, target, save_name, p):
     df = pd.DataFrame()
     df['logits'] = logits.squeeze().reshape(b*s).tolist()
     df['target'] = target.squeeze().reshape(b*s).tolist()
-   #df.to_csv(f'{p}/{save_name}.csv', mode='a', index=False, header=False)
+    df.to_csv(f'{p}/{save_name}.csv', mode='a', index=False, header=False)
 
 def get_arg_parser():
     parser = argparse.ArgumentParser()
@@ -27,9 +27,10 @@ def get_arg_parser():
     parser.add_argument('-backbone', default="resnet", type=str) 
     parser.add_argument('-concept_features', action=argparse.BooleanOptionalAction) 
     parser.add_argument('-intervention_prediction', action=argparse.BooleanOptionalAction) 
-    parser.add_argument('-save_path', default="./", type=str) 
+    parser.add_argument('-save_path', default="", type=str) 
+    parser.add_argument('-max_epochs', default=1, type=int) 
     parser.add_argument('-bs', default=1, type=int) 
-    parser.add_argument('-ground_truth', default="desired", type=str) 
+    parser.add_argument('-ground_truth', default="normal", type=str) 
     parser.add_argument('-dev_run', default=False, type=bool) 
     parser.add_argument('-checkpoint_path', default='', type=str)
     return parser
@@ -51,7 +52,6 @@ if __name__ == "__main__":
     ckpt_pth = f"/data1/shared/jessica/data3/data/toyota/ckpts/ckpts_desired{args.dataset}_{args.task}/"
     checkpoint_callback = ModelCheckpoint(save_top_k=2, monitor="val_loss_accumulated")
     logger = TensorBoardLogger(save_dir=ckpt_pth)
-    
 
     trainer = pl.Trainer(
         fast_dev_run=args.dev_run,
@@ -59,18 +59,18 @@ if __name__ == "__main__":
         accelerator='gpu',
         devices=[args.gpu_num] if torch.cuda.is_available() else None, 
         logger=logger,
-        max_epochs=400,
+        max_epochs=args.max_epochs,
         default_root_dir=ckpt_pth ,
         callbacks=[TQDMProgressBar(refresh_rate=5), checkpoint_callback],
         #, EarlyStopping(monitor="train_loss", mode="min")],#in case we want early stopping
         )
-
+    save_path = args.save_path
     if args.train:
         trainer.fit(module)
-        '''with open(f'{checkpoint_callback.best_model_path}/hparams.yaml', 'w') as f:
-            k = ''.join(checkpoint_callback.best_model_path.split("/")[:-1])
-            print(f'{k}/hparams.yaml')
-            yaml.dump(hparams, f)'''
+        save_path = "/".join(checkpoint_callback.best_model_path.split("/")[:-1])
+        print(f'saving hparams at {save_path}')
+        with open(f'{save_path}/hparams.yaml', 'w') as f:
+            yaml.dump(args, f)
     ckpt_path=args.checkpoint_path
     p = "/".join(ckpt_path.split("/")[:-2])
     preds = trainer.test(module, ckpt_path=ckpt_path if ckpt_path != '' else "best")
@@ -78,9 +78,9 @@ if __name__ == "__main__":
     for pred in preds:
         if args.task != "multitask":
             predictions, preds_1, preds_2 = pred[0], pred[1], pred[2] 
-            save_preds(predictions, preds_1, f"{args.task}", args.save_path)
+            save_preds(predictions, preds_1, f"{args.task}", save_path)
         else:
             preds, angle, dist = pred[0], pred[1], pred[2]
             preds_angle, preds_dist = preds[0], preds[1]
-            save_preds(preds_angle, angle, f"angle_multi", args.save_path)
-            save_preds(preds_dist, dist, f"dist_multi", args.save_path)
+            save_preds(preds_angle, angle, f"angle_multi", save_path)
+            save_preds(preds_dist, dist, f"dist_multi", save_path)

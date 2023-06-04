@@ -32,7 +32,7 @@ class NUScenesDataset(Dataset):
         self.keys = list(self.h5_file.keys())
            
     def __len__(self):
-        return len(self.keys)
+        return 2#len(self.keys)
 
     def __getitem__(self, idx):
         person_seq = {}

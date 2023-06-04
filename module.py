@@ -50,7 +50,6 @@ class LaneModule(pl.LightningModule):
                 mask = distance.squeeze() == 0.0
                 loss_angle = self.bce_loss(sm(logits_angle.float()).squeeze()[~mask], angle.float().squeeze()[~mask])
             loss_distance = torch.sqrt(self.loss(logits_dist.squeeze(), distance.squeeze(), mask))
-
             if loss_angle.isnan() or loss_distance.isnan():
                 print("ERROR")
             loss = loss_angle, loss_distance
@@ -87,20 +86,20 @@ class LaneModule(pl.LightningModule):
                     if self.multitask == "distance" and len(logits_all) > 0:
                         distance[:,i+j] = torch.tensor(logits_all)[-1]
                     if self.multitask == "multitask":
-                        logits = self(input_ids_img, input_ids_angle, input_ids_distance, input_ids_vego)
+                        logits, attns = self(input_ids_img, input_ids_angle, input_ids_distance, input_ids_vego)
                         logits = logits[0][:, -1], logits[1][:, -1]
                     else:
-                        logits = self(input_ids_img, input_ids_angle, input_ids_distance, input_ids_vego)[:, -1]
+                        logits, attns = self(input_ids_img, input_ids_angle, input_ids_distance, input_ids_vego)[:, -1]
                     logits_all.append(logits)
             return torch.tensor(logits_all), angle[:,self.time_horizon:], distance[:,self.time_horizon:]
 
         
-        logits = self(image_array, angle, distance, vego)
+        logits, attns = self(image_array, angle, distance, vego)
         return logits, angle, distance
 
     def validation_step(self, batch, batch_idx):
         _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
-        logits = self(image_array, angle, distance, vego)
+        logits, attns = self(image_array, angle, distance, vego)
         loss = self.calculate_loss(logits, angle, distance)
         if self.multitask == "multitask":
             loss_angle, loss_dist, param_angle, param_dist = loss
@@ -123,14 +122,14 @@ class LaneModule(pl.LightningModule):
                         angle[:,i+j] = logits[:,-1]
                     if self.multitask == "distance":
                         distance[:,i+j] = input_ids_distance[:,-1]
-                    logits = self(input_ids_img, input_ids_angle, input_ids_distance, input_ids_vego)[:, -1]
+                    logits, attns = self(input_ids_img, input_ids_angle, input_ids_distance, input_ids_vego)[:, -1]
                     logits_all.append(logits)
             loss = self.calculate_loss(torch.tensor(logits_all), angle[:,self.time_horizon:], distance[:,self.time_horizon:])
             self.log_dict({"test_loss": loss}, on_epoch=True, batch_size=self.bs)
             return loss
     
         _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
-        logits = self(image_array, angle, distance, vego)
+        logits, attns = self(image_array, angle, distance, vego)
         loss = self.calculate_loss(logits, angle, distance)
         if self.multitask == "multitask":
             loss_angle, loss_dist, param_angle, param_dist = loss
