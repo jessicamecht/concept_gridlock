@@ -225,4 +225,4 @@ class VTN(nn.Module):
         if self.multitask != "multitask":
             return x[:,1:F+1,:], attentions # we want to exclude the starting token since we don't have any previous knowledge about it 
         else:
-            return (x[:,1:F+1,:], x2[:,1:F+1,:]), attentions#self.multitask_param_angle, self.multitask_param_dist # we want to exclude the starting token since we don't have any previous knowledge about it 
+            return (x[:,1:F+1,:], x2[:,1:F+1,:],self.multitask_param_angle, self.multitask_param_dist), attentions#self.multitask_param_angle, self.multitask_param_dist # we want to exclude the starting token since we don't have any previous knowledge about it 
