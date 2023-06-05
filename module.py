@@ -13,13 +13,14 @@ import numpy as np
 
 class LaneModule(pl.LightningModule):
     '''Pytorch lightning module to train angle, distance or multitask procedures'''
-    def __init__(self, model, bs, multitask="angle", dataset="comma", time_horizon=1, ground_truth="desired", intervention=False):
+    def __init__(self, model, bs, multitask="angle", dataset="comma", time_horizon=1, ground_truth="desired", intervention=False, dataset_path=None):
         super(LaneModule, self).__init__()
         self.model = model
         self.dataset = dataset
         self.ground_truth = ground_truth
         self.intervention = intervention
-        self.num_workers = 2
+        self.dataset_path = dataset_path
+        self.num_workers = 10
         self.multitask = multitask
         self.bs = bs
         self.time_horizon = time_horizon

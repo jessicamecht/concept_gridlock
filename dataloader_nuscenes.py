@@ -15,7 +15,8 @@ class NUScenesDataset(Dataset):
         multitask="angle",
         ground_truth="desired",
         return_full=False,
-        max_len=240
+        max_len=240,
+        dataset_path=None
     ):
         assert dataset_type in ["train", "val", "test"]
         self.dataset_type = dataset_type
@@ -26,8 +27,7 @@ class NUScenesDataset(Dataset):
         self.return_full = return_full
         self.normalize = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
         self.resize = transforms.Resize((224,224))
-        #data_path = f"/data1/shared/jessica/data1/data/toyota/comma_{dataset_type}_filtered.h5py" if ground_truth == "regular" else f"/data1/shared/jessica/data1/data/toyota/comma_{dataset_type}_w_desired_filtered.h5py"
-        data_path = '/data1/jessica/data/toyota/nuscenes/test_mini_nuscenes.hfd5' if dataset_type == "val" else ('/data1/jessica/data/toyota/nuscenes/train_consec_nuscenes.hfd5' if dataset_type == "train" else '/data1/jessica/data/toyota/nuscenes/train_2_2_consec_nuscenes.hfd5')
+        data_path = f'{dataset_path}/nuscenes/test_mini_nuscenes.hfd5' if dataset_type == "val" else (f'{dataset_path}/nuscenes/train_consec_nuscenes.hfd5' if dataset_type == "train" else f'{dataset_path}/nuscenes/train_2_2_consec_nuscenes.hfd5')
         self.h5_file = h5py.File(data_path, "r")
         self.keys = list(self.h5_file.keys())
         corrupt_idx = 24
