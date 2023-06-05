@@ -35,7 +35,7 @@ class NUScenesDataset(Dataset):
             self.keys.pop(corrupt_idx)
            
     def __len__(self):
-        return len(self.keys)
+        return len(self.keys) if self.dataset_type != "test" else len(self.keys[0:20])
 
     def __getitem__(self, idx):
         person_seq = {}

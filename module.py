@@ -24,7 +24,6 @@ class LaneModule(pl.LightningModule):
         self.multitask = multitask
         self.bs = bs
         self.time_horizon = time_horizon
-        self.i = 0
         self.loss = self.mse_loss
         #self.save_hyperparameters(ignore=['model'])
         self.bce_loss = nn.BCELoss()
