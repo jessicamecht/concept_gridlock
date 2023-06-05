@@ -93,7 +93,6 @@ class VTN(nn.Module):
         if backbone == "vit":
             print("using vit backbone")
             self.backbone = vit_base_patch16_224(pretrained=True,num_classes=0,drop_path_rate=0.0,drop_rate=0.0)
-            embed_dim = self.backbone.embed_dim
             num_attention_heads=3 if not concept_features else 7
             mlp_size = 768+additional_feat_size #image feature size + previous sensor feature size 
             embed_dim = 768+additional_feat_size
@@ -170,7 +169,7 @@ class VTN(nn.Module):
 
         # spatial backbone
         B, F, C, H, W = x.shape
-        if self.backbone != "none":
+        if self.backbone_name != "none":
             x = x.reshape(B * F, C, H, W)
             x = self.backbone(x)
             if self.backbone_name == "clip":
@@ -180,7 +179,7 @@ class VTN(nn.Module):
 
         #concatenate the sensor features 
         if self.concept_features:
-            x = torch.cat([x, probs], dim=-1) if self.backbone != 'none' else probs
+            x = torch.cat([x, probs], dim=-1) if self.backbone_name != 'none' else probs
         x = torch.cat((x, angle.unsqueeze(-1)), dim=-1)
         x = torch.cat((x, distance.unsqueeze(-1)), dim=-1)
         x = torch.cat((x, vego.unsqueeze(-1)), dim=-1)
