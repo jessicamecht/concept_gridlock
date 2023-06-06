@@ -20,7 +20,7 @@ class LaneModule(pl.LightningModule):
         self.ground_truth = ground_truth
         self.intervention = intervention
         self.dataset_path = dataset_path
-        self.num_workers = 10
+        self.num_workers = 4
         self.multitask = multitask
         self.bs = bs
         self.time_horizon = time_horizon

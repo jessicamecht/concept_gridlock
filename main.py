@@ -10,6 +10,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from  pytorch_lightning.loggers.tensorboard import TensorBoardLogger
 from pathlib import Path
 import pandas as pd 
+import os
 
 def save_preds(logits, target, save_name, p):
     b, s = target.shape
@@ -37,6 +38,8 @@ def get_arg_parser():
     return parser
 
 if __name__ == "__main__":
+    torch.cuda.empty_cache()
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:50"
 
     if torch.cuda.device_count() > 0 and torch.cuda.get_device_capability()[0] >= 7:
         # Set the float32 matrix multiplication precision to 'high'
