@@ -174,6 +174,6 @@ class LaneModule(pl.LightningModule):
         elif self.dataset == "comma":
             ds = CommaDataset(dataset_type=dataset_type, multitask=self.multitask if not self.intervention else "intervention", ground_truth=self.ground_truth, dataset_path=self.dataset_path)
         elif self.dataset == 'nuscenes':
-            ds = NUScenesDataset(dataset_type=dataset_type, multitask=self.multitask if not self.intervention else "intervention", ground_truth=self.ground_truth, max_len=80, dataset_path=self.dataset_path)
+            ds = NUScenesDataset(dataset_type=dataset_type, multitask=self.multitask if not self.intervention else "intervention", ground_truth=self.ground_truth, max_len=20, dataset_path=self.dataset_path)
         return DataLoader(ds, batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
         
