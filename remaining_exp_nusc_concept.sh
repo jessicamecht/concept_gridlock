@@ -1,3 +1,3 @@
-python3 main.py -dataset nuscenes -backbone none -concept_features -ground_truth normal -train -gpu_num 1  -max_epochs 400 -task  multitask -bs 24
-python3 main.py -dataset nuscenes -backbone none -concept_features -ground_truth normal -train -gpu_num 1  -max_epochs 400 -task  distance -bs 24
-python3 main.py -dataset nuscenes -backbone none -concept_features -ground_truth normal -train -gpu_num 1  -max_epochs 400 -task  angle -bs 24
+python3 main.py -dataset nuscenes -backbone resnet -concept_features -ground_truth normal -train -gpu_num 1  -max_epochs 600 -task  multitask -bs 2 -new_version
+python3 main.py -dataset nuscenes -backbone resnet -concept_features -ground_truth normal -train -gpu_num 1  -max_epochs 600 -task  distance -bs 2 -new_version
+python3 main.py -dataset nuscenes -backbone resnet -concept_features -ground_truth normal -train -gpu_num 1  -max_epochs 600 -task  angle -bs 2 -new_version
