@@ -69,10 +69,10 @@ class NUScenesDataset(Dataset):
             images = images/255.0
         images = self.resize(images)
         images_cropped = images
-        res = seq_key, images_cropped,  sequences['vehicle_speed'],  sequences['steering'], distances
+        res = images_cropped, images_cropped,  sequences['vehicle_speed'],  sequences['steering'], distances
         intervent = ~steady_state
         if self.return_full: 
             return images_cropped,  sequences['vehicle_speed'],  sequences['steering'], distances, None,  np.array(sequences['brake']).astype(bool) , intervent
         if self.multitask == "distance":
-            res = seq_key, images_cropped, sequences['vehicle_speed'], distances, sequences['steering']
+            res = images_cropped, images_cropped, sequences['vehicle_speed'], distances, sequences['steering']
         return res 
