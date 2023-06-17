@@ -33,26 +33,26 @@ class NUScenesDataset(Dataset):
         corrupt_idx = 24
         if dataset_type == "train":
             self.keys.pop(corrupt_idx)
-        if dataset_type == "test":
+        '''if dataset_type == "test":
             p = f'{dataset_path}/nuscenes/test_2_consec_nuscenes.hfd5'
             self.h5_file2 = h5py.File(p, "r")
             self.keys2 = list(self.h5_file2.keys())
             p = f'{dataset_path}/nuscenes/test_3_consec_nuscenes.hfd5'
             self.h5_file3 = h5py.File(p, "r")
-            self.keys3 = list(self.h5_file3.keys())
+            self.keys3 = list(self.h5_file3.keys())'''
 
         
            
     def __len__(self):
-        return len(self.keys) + len(self.keys2) + len(self.keys3) 
+        return len(self.keys) #+ len(self.keys2) + len(self.keys3) 
 
     def __getitem__(self, idx):
         person_seq = {}
-        if i < len(self.keys):
+        if idx < len(self.keys):
             seq_key  = self.keys[idx]
             keys_ = self.h5_file[seq_key].keys()#'steering', 'brake', 'available_distance', 'image', 'utime', 'vehicle_speed'
             file = self.h5_file
-        elif i < (len(self.keys) + len(self.keys2)):
+        '''elif i < (len(self.keys) + len(self.keys2)):
             idx = idx - len(self.keys)
             seq_key  = self.keys2[idx]
             keys_ = self.h5_file2[seq_key].keys()#'steering', 'brake', 'available_distance', 'image', 'utime', 'vehicle_speed'
@@ -61,7 +61,7 @@ class NUScenesDataset(Dataset):
             idx = idx - len(self.keys) - len(self.keys2)
             seq_key  = self.keys3[idx]
             keys_ = self.h5_file3[seq_key].keys()#'steering', 'brake', 'available_distance', 'image', 'utime', 'vehicle_speed'
-            file = self.h5_file3
+            file = self.h5_file3'''
         
         for key in keys_:   
             if key == 'description': continue                    
