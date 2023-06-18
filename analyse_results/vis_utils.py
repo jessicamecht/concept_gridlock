@@ -16,7 +16,7 @@ import glob
 import os
 from utils import * 
 import re
-gpu_num = 0
+gpu_num = 1
 gpu = f'cuda:{gpu_num}'
 multitask = 'distance'
 backbone = 'none'
@@ -86,10 +86,10 @@ def get_regular_ckpt_from_lightning_checkpoint(state_dict):
     return state_dict
 
 commda_ds = CommaDataset(dataset_type="test",
-        multitask="distance",
+        multitask=multitask,
         ground_truth="normal", dataset_path='/data1/jessica/data/toyota/')
 nuscenes_ds = NUScenesDataset(dataset_type="test",
-        multitask="distance",
+        multitask=multitask,
         ground_truth="normal", dataset_path='/data1/jessica/data/toyota/' )
 dataloader_comma = DataLoader(commda_ds, batch_size=1, shuffle=False, num_workers=0, collate_fn=pad_collate)
 dataloader_nuscenes = DataLoader(nuscenes_ds, batch_size=1, shuffle=False, num_workers=0)
