@@ -52,11 +52,7 @@ class NUScenesDataset(Dataset):
             seq_key  = self.keys[idx]
             keys_ = self.h5_file[seq_key].keys()#'steering', 'brake', 'available_distance', 'image', 'utime', 'vehicle_speed'
             file = self.h5_file
-<<<<<<< HEAD
         '''elif i < (len(self.keys) + len(self.keys2)):
-=======
-        '''elif idx < (len(self.keys) + len(self.keys2)):
->>>>>>> 2d5266d (update)
             idx = idx - len(self.keys)
             seq_key  = self.keys2[idx]
             keys_ = self.h5_file2[seq_key].keys()#'steering', 'brake', 'available_distance', 'image', 'utime', 'vehicle_speed'
