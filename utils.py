@@ -13,10 +13,15 @@ with open(p) as file:
     lines = [line.strip() for line in file]
 scenarios = lines
 
-scenarios = random.sample(scenarios, 100)
-with open("scenarios_small_100.txt", "w") as file:
-    for item in scenarios:
-        file.write(str(item) + "\n")
+p = "/home/jessica/personalized_driving_toyota/scenarios/scenarios_small_300.txt"
+with open(p) as file:
+    lines = [line.strip() for line in file]
+scenarios = lines
+
+#scenarios = random.sample(scenarios, 300)
+#with open("scenarios_small_100.txt", "w") as file:
+#    for item in scenarios:
+#        file.write(str(item) + "\n")
 scenarios_tokens = clip.tokenize(scenarios)
 
 def pad_collate(batch):
