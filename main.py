@@ -25,6 +25,7 @@ def get_arg_parser():
     parser.add_argument('-train', action=argparse.BooleanOptionalAction)  
     parser.add_argument('-test', action=argparse.BooleanOptionalAction)
     parser.add_argument('-gpu_num', default=0, type=int) 
+    parser.add_argument('-n_scenarios', default=643, type=int) 
     parser.add_argument('-dataset', default="comma", type=str)  
     parser.add_argument('-backbone', default="resnet", type=str) 
     parser.add_argument('-dataset_path', default="/data1/jessica/data/toyota/", type=str) 
@@ -107,11 +108,11 @@ if __name__ == "__main__":
     p = "/".join(ckpt_path.split("/")[:-2])
     #preds = trainer.test(module, ckpt_path=ckpt_path if ckpt_path != '' else "best")
     preds = trainer.predict(module, ckpt_path=ckpt_path if ckpt_path != '' else "best")
-    save_path =  "."
+    #save_path =  "."
     for pred in preds:
         if args.task != "multitask":
             predictions, preds_1, preds_2 = pred[0], pred[1], pred[2] 
-            save_preds(predictions, preds_1, f"{args.dataset}_{args.task}_{args.backbone}_{args.concept_features}", save_path)
+            save_preds(predictions, preds_1, f"{args.dataset}_{args.task}_{args.backbone}_{args.concept_features}_{args.n_scenarios}", save_path)
         else:
             preds, angle, dist = pred[0], pred[1], pred[2]
             preds_angle, preds_dist = preds[0], preds[1]
