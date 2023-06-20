@@ -13,7 +13,7 @@ with open(p) as file:
     lines = [line.strip() for line in file]
 scenarios = lines
 
-p = "/home/jessica/personalized_driving_toyota/scenarios/scenarios_small_300.txt"
+p = "/home/jessica/personalized_driving_toyota/scenarios/scenarios_small_48.txt"
 with open(p) as file:
     lines = [line.strip() for line in file]
 scenarios = lines
