@@ -16,7 +16,8 @@ class NUScenesDataset(Dataset):
         ground_truth="desired",
         return_full=False,
         max_len=240,
-        dataset_path=None
+        dataset_path=None,
+        dataset_fraction=1.0,
     ):
         assert dataset_type in ["train", "val", "test"]
         self.dataset_type = dataset_type
@@ -24,6 +25,7 @@ class NUScenesDataset(Dataset):
         self.multitask = multitask
         self.max_len = max_len
         self.use_transform = use_transform
+        self.dataset_fraction = dataset_fraction
         self.return_full = return_full
         self.normalize = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
         self.resize = transforms.Resize((224,224))
@@ -33,6 +35,7 @@ class NUScenesDataset(Dataset):
         corrupt_idx = 24
         if dataset_type == "train":
             self.keys.pop(corrupt_idx)
+        
         '''if dataset_type == "test":
             p = f'{dataset_path}/nuscenes/test_2_consec_nuscenes.hfd5'
             self.h5_file2 = h5py.File(p, "r")
@@ -44,7 +47,7 @@ class NUScenesDataset(Dataset):
         
            
     def __len__(self):
-        return len(self.keys) #+ len(self.keys2) + len(self.keys3) 
+        return int(len(self.keys) * self.dataset_fraction) if self.dataset_type == "train" else len(self.keys) #+ len(self.keys2) + len(self.keys3) 
 
     def __getitem__(self, idx):
         person_seq = {}

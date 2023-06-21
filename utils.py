@@ -13,11 +13,6 @@ with open(p) as file:
     lines = [line.strip() for line in file]
 scenarios = lines
 
-p = "/home/jessica/personalized_driving_toyota/scenarios/scenarios_small_48.txt"
-with open(p) as file:
-    lines = [line.strip() for line in file]
-scenarios = lines
-
 #scenarios = random.sample(scenarios, 300)
 #with open("scenarios_small_100.txt", "w") as file:
 #    for item in scenarios:

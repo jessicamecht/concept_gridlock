@@ -13,8 +13,9 @@ import numpy as np
 
 class LaneModule(pl.LightningModule):
     '''Pytorch lightning module to train angle, distance or multitask procedures'''
-    def __init__(self, model, bs, multitask="angle", dataset="comma", time_horizon=1, ground_truth="desired", intervention=False, dataset_path=None):
+    def __init__(self, model, bs, multitask="angle", dataset="comma", time_horizon=1, ground_truth="desired", intervention=False, dataset_path=None, dataset_fraction=1.0):
         super(LaneModule, self).__init__()
+        self.dataset_fraction = dataset_fraction
         self.model = model
         self.dataset = dataset
         self.ground_truth = ground_truth
@@ -172,8 +173,8 @@ class LaneModule(pl.LightningModule):
         if self.dataset == "once":
             ds = ONCEDataset(dataset_type=dataset_type, multitask=self.multitask) 
         elif self.dataset == "comma":
-            ds = CommaDataset(dataset_type=dataset_type, multitask=self.multitask if not self.intervention else "intervention", ground_truth=self.ground_truth, dataset_path=self.dataset_path)
+            ds = CommaDataset(dataset_type=dataset_type, multitask=self.multitask if not self.intervention else "intervention", ground_truth=self.ground_truth, dataset_path=self.dataset_path, dataset_fraction=self.dataset_fraction)
         elif self.dataset == 'nuscenes':
-            ds = NUScenesDataset(dataset_type=dataset_type, multitask=self.multitask if not self.intervention else "intervention", ground_truth=self.ground_truth, max_len=20, dataset_path=self.dataset_path)
+            ds = NUScenesDataset(dataset_type=dataset_type, multitask=self.multitask if not self.intervention else "intervention", ground_truth=self.ground_truth, max_len=20, dataset_path=self.dataset_path, dataset_fraction=self.dataset_fraction)
         return DataLoader(ds, batch_size=self.bs, num_workers=self.num_workers, collate_fn=pad_collate)
         
