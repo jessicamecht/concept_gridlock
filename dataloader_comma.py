@@ -15,6 +15,7 @@ class CommaDataset(Dataset):
         ground_truth="desired",
         return_full=False, 
         dataset_path = None,
+        dataset_fraction=1.0
     ):
         assert dataset_type in ["train", "val", "test"]
         if dataset_type == "val":
@@ -23,6 +24,7 @@ class CommaDataset(Dataset):
             dataset_type = "val" 
         
         self.dataset_type = dataset_type
+        self.dataset_fraction = dataset_fraction
         self.max_len = 240
         self.ground_truth = ground_truth
         self.multitask = multitask
