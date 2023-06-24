@@ -26,6 +26,8 @@ def get_arg_parser():
     parser.add_argument('-test', action=argparse.BooleanOptionalAction)
     parser.add_argument('-gpu_num', default=0, type=int) 
     parser.add_argument('-n_scenarios', default=643, type=int) 
+    parser.add_argument('-scenario_type', default="not_specified", type=str) 
+    
     parser.add_argument('-dataset_fraction', default=1, type=float) 
     parser.add_argument('-dataset', default="comma", type=str)  
     parser.add_argument('-backbone', default="resnet", type=str) 
