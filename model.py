@@ -74,10 +74,11 @@ class VTN(nn.Module):
     https://arxiv.org/abs/2102.00719
     """
 
-    def __init__(self, multitask="angle", backbone="resnet", device="cuda:2", multitask_param=True, concept_features=False, return_concepts=False):
+    def __init__(self, multitask="angle", backbone="resnet", device="cuda:2", multitask_param=True, concept_features=False, train_conepts=False, return_concepts=False):
         super(VTN, self).__init__()
         self.device = device
         self.return_concepts = return_concepts
+        self.train_concepts = train_conepts
     
         self._construct_network(multitask, backbone, multitask_param, concept_features)
 
@@ -159,7 +160,8 @@ class VTN(nn.Module):
             s = img.shape#[batch_size, seq_len, h,w,c]
             logits_per_image, logits_per_text = self.clip_model(img.reshape((img.shape[0]*img.shape[1], img.shape[2], img.shape[3], img.shape[4])), scenarios_tokens.to(x.device))
             probs = logits_per_image.softmax(dim=-1)
-            probs = logits_per_image.detach().reshape((int(img.shape[0]), int(logits_per_image.shape[0]/img.shape[0]), -1))
+            probs = logits_per_image.reshape((int(img.shape[0]), int(logits_per_image.shape[0]/img.shape[0]), -1))
+            if not self.train_concepts: probs = probs.detach()
 
         angle = torch.roll(angle, shifts=1, dims=1)
         angle[:,0] = angle[:,1]
@@ -174,7 +176,8 @@ class VTN(nn.Module):
             x = x.reshape(B * F, C, H, W)
             x = self.backbone(x)
             if self.backbone_name == "clip":
-                x = x.detach()
+                if not self.train_concepts:
+                    x = x.detach()
             x = x.reshape(B, F, -1)
             
 
