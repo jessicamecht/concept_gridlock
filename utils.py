@@ -8,7 +8,7 @@ with open(p) as file:
 scenarios = lines
 scenarios_tokens = clip.tokenize(scenarios)
 
-p = "/home/jessica/personalized_driving_toyota/scenarios/scenarios_nuscenes.txt"
+p = "/home/jessica/personalized_driving_toyota/scenarios/scenarios_gpt_270.txt"
 with open(p) as file:
     lines = [line.strip() for line in file]
 scenarios = lines
