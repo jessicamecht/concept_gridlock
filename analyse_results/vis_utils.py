@@ -16,7 +16,7 @@ import glob
 import os
 from utils import * 
 import re
-gpu_num = 0
+gpu_num = 1
 gpu = f'cuda:{gpu_num}'
 multitask = 'distance'
 backbone = 'none'
@@ -89,15 +89,15 @@ commda_ds = CommaDataset(dataset_type="test",
         multitask=multitask,
         ground_truth="normal", dataset_path='/data1/jessica/data/toyota/')
 nuscenes_ds = NUScenesDataset(dataset_type="test",
-        multitask=multitask,
-        ground_truth="normal", dataset_path='/data1/jessica/data/toyota/' )
+        multitask=multitask, max_len=20,
+        ground_truth="normal", dataset_path='/data1/jessica/data/toyota/')
 dataloader_comma = DataLoader(commda_ds, batch_size=1, shuffle=False, num_workers=0, collate_fn=pad_collate)
-dataloader_nuscenes = DataLoader(nuscenes_ds, batch_size=1, shuffle=False, num_workers=0)
+dataloader_nuscenes = DataLoader(nuscenes_ds, batch_size=1, shuffle=True, num_workers=0, collate_fn=pad_collate)
 
 model = VTN(multitask=multitask, backbone=backbone, concept_features=concept_features, device = f"cuda:{gpu_num}", return_concepts=True)
 checkpoint_path_distance = '/data1/jessica/data/toyota/ckpts_final/ckpts_final_comma_distance_none/lightning_logs/version_0/checkpoints//epoch=50-step=3162.ckpt'
-checkpoint_path_angle = '/data1/jessica/data/toyota/ckpts_final/ckpts_final_nuscenes_distance_none/lightning_logs/version_15/checkpoints/epoch=425-step=29820.ckpt'
-checkpoint_path = checkpoint_path_angle
+checkpoint_path_angle = '/data1/jessica/data/toyota/ckpts_final/ckpts_final_nuscenes_distance_none/lightning_logs/version_10/checkpoints/epoch=519-step=14560.ckpt'
+checkpoint_path = checkpoint_path_distance
 
 ckpt = torch.load(checkpoint_path, map_location=gpu)
 state_dict = ckpt['state_dict']
