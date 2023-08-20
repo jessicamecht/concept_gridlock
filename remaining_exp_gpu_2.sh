@@ -1,2 +1,0 @@
-python3 main.py -dataset nuscenes -backbone resnet -ground_truth normal -train -gpu_num 3  -max_epochs 400 -task  multitask -bs 12
-python3 main.py -dataset nuscenes -backbone clip -ground_truth normal -train -gpu_num 3 -max_epochs 400 -task  multitask -bs 12

@@ -2,16 +2,16 @@ from torch.nn.utils.rnn import pad_sequence
 import numpy as np 
 import clip
 import random
-p = "/home/jessica/personalized_driving_toyota/scenarios/scenarios.txt"
+p = "/home/jessica/personalized_driving_toyota/scenarios/scenarios_small_100.txt"
 with open(p) as file:
     lines = [line.strip() for line in file]
 scenarios = lines
 scenarios_tokens = clip.tokenize(scenarios)
 
-p = "/home/jessica/personalized_driving_toyota/scenarios/scenarios_only_nuscenes_270.txt"
+'''p = "/home/jessica/personalized_driving_toyota/scenarios/scenarios_only_nuscenes_270.txt"
 with open(p) as file:
     lines = [line.strip() for line in file]
-scenarios = lines
+scenarios = lines'''
 
 #scenarios = random.sample(scenarios, 300)
 #with open("scenarios_small_100.txt", "w") as file:

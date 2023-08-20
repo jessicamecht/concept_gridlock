@@ -74,6 +74,7 @@ class CommaDataset(Dataset):
         images = images.permute(0,3,1,2)
         if not self.return_full:
             images = self.normalize(images/255.0)
+            
         else:
             images = images/255.0
         images = self.resize(images)
