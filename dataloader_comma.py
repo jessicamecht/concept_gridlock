@@ -33,7 +33,7 @@ class CommaDataset(Dataset):
         self.normalize = transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
         self.resize = transforms.Resize((224,224))
         #/data1/shared/jessica/data1/data/
-        data_path = f"{dataset_path}/comma_{dataset_type}_filtered.h5py" if ground_truth == "regular" else f"{dataset_path}/comma_{dataset_type}_w_desired_filtered.h5py"
+        data_path = f"{dataset_path}/comma/comma_{dataset_type}_filtered.h5py" if ground_truth == "regular" else f"{dataset_path}/comma/comma_{dataset_type}_w_desired_filtered.h5py"
         self.people_seqs = []
         self.h5_file = h5py.File(data_path, "r")
         corrupt_idx = 62

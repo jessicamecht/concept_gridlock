@@ -3,6 +3,10 @@ import numpy as np
 import clip
 import random
 p = "/home/jessica/personalized_driving_toyota/scenarios/scenarios_small_100.txt"
+#p = '/home/jessica/personalized_driving_toyota/scenarios/scenarios_gpt_270.txt'
+#p = '/home/jessica/personalized_driving_toyota/scenarios/scenarios_curated_270.txt'
+#p = '/home/jessica/personalized_driving_toyota/scenarios/scenarios_only_nuscenes_270.txt'
+#p = "/home/jessica/personalized_driving_toyota/scenarios/scenarios_nuscenes.txt"
 with open(p) as file:
     lines = [line.strip() for line in file]
 scenarios = lines

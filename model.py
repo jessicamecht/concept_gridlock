@@ -74,11 +74,11 @@ class VTN(nn.Module):
     https://arxiv.org/abs/2102.00719
     """
 
-    def __init__(self, multitask="angle", backbone="resnet", device="cuda:2", multitask_param=True, concept_features=False, train_conepts=False, return_concepts=False):
+    def __init__(self, multitask="angle", backbone="resnet", device="cuda:2", multitask_param=True, concept_features=False, train_concepts=False, return_concepts=False):
         super(VTN, self).__init__()
         self.device = device
         self.return_concepts = return_concepts
-        self.train_concepts = train_conepts
+        self.train_concepts = train_concepts
     
         self._construct_network(multitask, backbone, multitask_param, concept_features)
 
@@ -228,7 +228,7 @@ class VTN(nn.Module):
         x = self.mlp_head(x)
         if self.multitask != "multitask":
             res = x[:,1:F+1,:], attentions
-            return res, probs # we want to exclude the starting token since we don't have any previous knowledge about it 
+            return res, probs if self.return_concepts else res # we want to exclude the starting token since we don't have any previous knowledge about it 
         else:
             res = (x[:,1:F+1,:], x2[:,1:F+1,:],self.multitask_param_angle, self.multitask_param_dist), attentions
-            return res, probs # we want to exclude the starting token since we don't have any previous knowledge about it 
+            return res, probs if self.return_concepts else res#, probs # we want to exclude the starting token since we don't have any previous knowledge about it 
