@@ -228,7 +228,7 @@ class VTN(nn.Module):
         x = self.mlp_head(x)
         if self.multitask != "multitask":
             res = x[:,1:F+1,:], attentions
-            return res, probs if self.return_concepts else res # we want to exclude the starting token since we don't have any previous knowledge about it 
+            return res#, probs if self.return_concepts else res # we want to exclude the starting token since we don't have any previous knowledge about it 
         else:
             res = (x[:,1:F+1,:], x2[:,1:F+1,:],self.multitask_param_angle, self.multitask_param_dist), attentions
-            return res, probs if self.return_concepts else res#, probs # we want to exclude the starting token since we don't have any previous knowledge about it 
+            return res#, probs if self.return_concepts else res#, probs # we want to exclude the starting token since we don't have any previous knowledge about it 

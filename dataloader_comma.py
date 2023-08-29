@@ -25,7 +25,7 @@ class CommaDataset(Dataset):
         
         self.dataset_type = dataset_type
         self.dataset_fraction = dataset_fraction
-        self.max_len = 240
+        self.max_len = 200
         self.ground_truth = ground_truth
         self.multitask = multitask
         self.use_transform = use_transform

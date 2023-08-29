@@ -16,7 +16,7 @@ import glob
 import os
 from utils import * 
 import re
-gpu_num = 0
+gpu_num = 1
 gpu = f'cuda:{gpu_num}'
 multitask = 'distance'
 backbone = 'none'
