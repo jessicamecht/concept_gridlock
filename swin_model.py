@@ -83,12 +83,11 @@ class Sensor_Pred_Head(torch.nn.Module):
         sequence_output = encoder_outputs[0][:, :frame_num, :]
 
         pred_tensor = self.decoder(sequence_output)
-        print(pred_tensor.shape, 'pred_tensor')
 
 
         loss = self.get_l2_loss(pred_tensor, car_info)
 
-        return pred_tensor, None#loss, pred_tensor
+        return pred_tensor, loss#loss, pred_tensor
 
     def get_attn_mask(self, img_embedding_output):
         """Get attention mask that should be passed to motion transformer."""
@@ -178,7 +177,6 @@ class SignalVideoTransformer(torch.nn.Module):
         
         images = images.permute(0, 2, 1, 3, 4)
         vid_feats = self.swin(images)
-        print('vid_feats', vid_feats.shape)
 
         # tokenize video features to video tokens
         if self.use_grid_feat==True:
@@ -187,7 +185,6 @@ class SignalVideoTransformer(torch.nn.Module):
 
         # use an mlp to transform video token dimension
         vid_feats = self.fc(vid_feats)
-        print('vid_feats1', vid_feats.shape)
 
         # prepare VL transformer inputs
         kwargs = {

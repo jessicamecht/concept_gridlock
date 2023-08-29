@@ -13,13 +13,14 @@ import numpy as np
 
 class LaneModule(pl.LightningModule):
     '''Pytorch lightning module to train angle, distance or multitask procedures'''
-    def __init__(self, model, bs, multitask="angle", dataset="comma", time_horizon=1, ground_truth="desired", intervention=False, dataset_path=None, dataset_fraction=1.0):
+    def __init__(self, model, bs, multitask="angle", dataset="comma", time_horizon=1, ground_truth="desired", intervention=False, dataset_path=None, dataset_fraction=1.0, swin_baseline=False):
         super(LaneModule, self).__init__()
         self.dataset_fraction = dataset_fraction
         self.model = model
         self.dataset = dataset
         self.ground_truth = ground_truth
         self.intervention = intervention
+        self.swin_baseline = swin_baseline
         self.dataset_path = dataset_path
         self.num_workers = 4
         self.multitask = multitask
@@ -64,81 +65,93 @@ class LaneModule(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
-        logits, attns = self(image_array, angle, distance, vego)
-        loss = self.calculate_loss(logits, angle, distance)
-        if self.multitask == "multitask":
-            loss_angle, loss_dist, param_angle, param_dist = loss
-            param_angle, param_dist = 0.3, 0.7
-            loss = (param_angle * loss_angle) + (param_dist * loss_dist)
-            self.log_dict({"val_loss_dist": loss_dist}, on_epoch=True, batch_size=self.bs)
-            self.log_dict({"val_loss_angle": loss_angle}, on_epoch=True, batch_size=self.bs)
-        self.log_dict({"train_loss": loss}, on_epoch=True, batch_size=self.bs)
+        if self.swin_baseline:  
+            logits, loss = self(image_array, angle, distance, vego)
+        else:
+            logits, attns = self(image_array, angle, distance, vego)
+            loss = self.calculate_loss(logits, angle, distance)
+            if self.multitask == "multitask":
+                loss_angle, loss_dist, param_angle, param_dist = loss
+                param_angle, param_dist = 0.3, 0.7
+                loss = (param_angle * loss_angle) + (param_dist * loss_dist)
+                self.log_dict({"val_loss_dist": loss_dist}, on_epoch=True, batch_size=self.bs)
+                self.log_dict({"val_loss_angle": loss_angle}, on_epoch=True, batch_size=self.bs)
+            self.log_dict({"train_loss": loss}, on_epoch=True, batch_size=self.bs)
         return loss
 
     def predict_step(self, batch, batch_idx):
         _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
-        if self.time_horizon > 1:
-            logits_all = []
-            for i in range(self.time_horizon, vego.shape[1], self.time_horizon):
-                for j in range(self.time_horizon):
-                    input_ids_img, input_ids_vego, input_ids_angle, input_ids_distance = image_array[:,0:i+j, :, :, :], vego[:,0:i+j], angle[:,0:i+j], distance[:,0:i+j]
-                    if self.multitask == "angle" and len(logits_all) > 0:
-                        angle[:,i+j] = torch.tensor(logits_all)[-1]
-                    if self.multitask == "distance" and len(logits_all) > 0:
-                        distance[:,i+j] = torch.tensor(logits_all)[-1]
-                    if self.multitask == "multitask":
-                        logits, attns = self(input_ids_img, input_ids_angle, input_ids_distance, input_ids_vego)
-                        logits = logits[0][:, -1], logits[1][:, -1]
-                    else:
-                        logits, attns = self(input_ids_img, input_ids_angle, input_ids_distance, input_ids_vego)[:, -1]
-                    logits_all.append(logits)
-            return torch.tensor(logits_all), angle[:,self.time_horizon:], distance[:,self.time_horizon:]
+        if self.swin_baseline:  
+            logits, loss = self(image_array, angle, distance, vego)
+        else:
+            if self.time_horizon > 1:
+                logits_all = []
+                for i in range(self.time_horizon, vego.shape[1], self.time_horizon):
+                    for j in range(self.time_horizon):
+                        input_ids_img, input_ids_vego, input_ids_angle, input_ids_distance = image_array[:,0:i+j, :, :, :], vego[:,0:i+j], angle[:,0:i+j], distance[:,0:i+j]
+                        if self.multitask == "angle" and len(logits_all) > 0:
+                            angle[:,i+j] = torch.tensor(logits_all)[-1]
+                        if self.multitask == "distance" and len(logits_all) > 0:
+                            distance[:,i+j] = torch.tensor(logits_all)[-1]
+                        if self.multitask == "multitask":
+                            logits, attns = self(input_ids_img, input_ids_angle, input_ids_distance, input_ids_vego)
+                            logits = logits[0][:, -1], logits[1][:, -1]
+                        else:
+                            logits, attns = self(input_ids_img, input_ids_angle, input_ids_distance, input_ids_vego)[:, -1]
+                        logits_all.append(logits)
+                return torch.tensor(logits_all), angle[:,self.time_horizon:], distance[:,self.time_horizon:]
 
-        
-        logits, attns = self(image_array, angle, distance, vego)
+            
+            logits, attns = self(image_array, angle, distance, vego)
         return logits, angle, distance
 
     def validation_step(self, batch, batch_idx):
         _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
-        logits, attns = self(image_array, angle, distance, vego)
-        loss = self.calculate_loss(logits, angle, distance)
-        if self.multitask == "multitask":
-            loss_angle, loss_dist, param_angle, param_dist = loss
-            param_angle, param_dist = 0.3, 0.7
-            loss = (param_angle * loss_angle) + (param_dist * loss_dist)
-            self.log_dict({"val_loss_dist": loss_dist}, on_epoch=True, batch_size=self.bs)
-            self.log_dict({"val_loss_angle": loss_angle}, on_epoch=True, batch_size=self.bs)
-        self.log_dict({"val_loss": loss}, on_epoch=True, batch_size=self.bs)
+        if self.swin_baseline:  
+            logits, loss = self(image_array, angle, distance, vego)
+        else:
+            logits, attns = self(image_array, angle, distance, vego)
+            loss = self.calculate_loss(logits, angle, distance)
+            if self.multitask == "multitask":
+                loss_angle, loss_dist, param_angle, param_dist = loss
+                param_angle, param_dist = 0.3, 0.7
+                loss = (param_angle * loss_angle) + (param_dist * loss_dist)
+                self.log_dict({"val_loss_dist": loss_dist}, on_epoch=True, batch_size=self.bs)
+                self.log_dict({"val_loss_angle": loss_angle}, on_epoch=True, batch_size=self.bs)
+            self.log_dict({"val_loss": loss}, on_epoch=True, batch_size=self.bs)
         
         return loss
 
     def test_step(self, batch, batch_idx):
         _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
-        if self.time_horizon > 1:
-            logits_all = []
-            for i in range(self.time_horizon,vego.shape[1], self.time_horizon):
-                for j in range(self.time_horizon)+1:
-                    input_ids_img, input_ids_vego, input_ids_angle, input_ids_distance = image_array[:,0:i+j, :, :, :], vego[:,0:i+j], angle[:,0:i+j], distance[:,0:i+j]
-                    if self.multitask == "angle":
-                        angle[:,i+j] = logits[:,-1]
-                    if self.multitask == "distance":
-                        distance[:,i+j] = input_ids_distance[:,-1]
-                    logits, attns = self(input_ids_img, input_ids_angle, input_ids_distance, input_ids_vego)[:, -1]
-                    logits_all.append(logits)
-            loss = self.calculate_loss(torch.tensor(logits_all), angle[:,self.time_horizon:], distance[:,self.time_horizon:])
+        if self.swin_baseline:  
+            logits, loss = self(image_array, angle, distance, vego)
+        else:
+            if self.time_horizon > 1:
+                logits_all = []
+                for i in range(self.time_horizon,vego.shape[1], self.time_horizon):
+                    for j in range(self.time_horizon)+1:
+                        input_ids_img, input_ids_vego, input_ids_angle, input_ids_distance = image_array[:,0:i+j, :, :, :], vego[:,0:i+j], angle[:,0:i+j], distance[:,0:i+j]
+                        if self.multitask == "angle":
+                            angle[:,i+j] = logits[:,-1]
+                        if self.multitask == "distance":
+                            distance[:,i+j] = input_ids_distance[:,-1]
+                        logits, attns = self(input_ids_img, input_ids_angle, input_ids_distance, input_ids_vego)[:, -1]
+                        logits_all.append(logits)
+                loss = self.calculate_loss(torch.tensor(logits_all), angle[:,self.time_horizon:], distance[:,self.time_horizon:])
+                self.log_dict({"test_loss": loss}, on_epoch=True, batch_size=self.bs)
+                return loss
+        
+            _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
+            logits, attns = self(image_array, angle, distance, vego)
+            loss = self.calculate_loss(logits, angle, distance)
+            if self.multitask == "multitask":
+                loss_angle, loss_dist, param_angle, param_dist = loss
+                param_angle, param_dist = 0.3, 0.7
+                loss = (param_angle * loss_angle) + (param_dist * loss_dist)
+                self.log_dict({"test_loss_dist": loss_dist}, on_epoch=True, batch_size=self.bs)
+                self.log_dict({"test_loss_angle": loss_angle}, on_epoch=True, batch_size=self.bs)
             self.log_dict({"test_loss": loss}, on_epoch=True, batch_size=self.bs)
-            return loss
-    
-        _, image_array, vego, angle, distance, m_lens, i_lens, s_lens, a_lens, d_lens = batch
-        logits, attns = self(image_array, angle, distance, vego)
-        loss = self.calculate_loss(logits, angle, distance)
-        if self.multitask == "multitask":
-            loss_angle, loss_dist, param_angle, param_dist = loss
-            param_angle, param_dist = 0.3, 0.7
-            loss = (param_angle * loss_angle) + (param_dist * loss_dist)
-            self.log_dict({"test_loss_dist": loss_dist}, on_epoch=True, batch_size=self.bs)
-            self.log_dict({"test_loss_angle": loss_angle}, on_epoch=True, batch_size=self.bs)
-        self.log_dict({"test_loss": loss}, on_epoch=True, batch_size=self.bs)
         return loss
 
     def training_epoch_end(self, outputs):
