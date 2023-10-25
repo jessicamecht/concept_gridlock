@@ -1,4 +1,4 @@
-# Personalized Driving Project
+# Explainability Bolltenecks for automated Driving
 
 To execute the training (or testing respectively -- make sure to set the testing checkpoint path accordingly), run 
 
